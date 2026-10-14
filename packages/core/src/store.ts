@@ -80,6 +80,24 @@ export interface Order {
 }
 export interface Toast { id: number; title: string; text?: string }
 
+export type NotificationCategory = 'supplier_reply' | 'new_supplier' | 'platform_news';
+
+export interface AppNotification {
+  id: string;
+  category: NotificationCategory;
+  title: string;
+  description: string;
+  time: string;
+  timestamp: number;
+  read: boolean;
+  badge?: string;
+  icon?: string;
+  avatar?: string;
+  supplierName?: string;
+  actionScreen?: string;
+  actionLabel?: string;
+}
+
 export interface ObraContract {
   sup: string;
   stageName: string;
@@ -275,7 +293,147 @@ export const INITIAL_OBRA: Obra = {
   ]
 };
 
-let itemSeq = 1, quoteSeq = 1, orderSeq = 41, toastSeq = 1, convSeq = 4, addrSeq = 2;
+export const INITIAL_NOTIFICATIONS: AppNotification[] = [
+  // 1. Respostas de fornecedores
+  {
+    id: 'notif-1',
+    category: 'supplier_reply',
+    title: 'Nova proposta de fundação recebida',
+    description: 'Base Forte Fundações enviou proposta técnica com cronograma detalhado e pagamento em 3 etapas para sua obra em Atibaia.',
+    time: 'há 15 min',
+    timestamp: nowInit - 15 * 60 * 1000,
+    read: false,
+    badge: 'Proposta R$ 186.000',
+    icon: 'orc',
+    avatar: 'm1',
+    supplierName: 'Base Forte Fundações',
+    actionScreen: 'chat:c1',
+    actionLabel: 'Ver proposta e detalhes'
+  },
+  {
+    id: 'notif-2',
+    category: 'supplier_reply',
+    title: 'Visita técnica agendada',
+    description: 'Painel Monolítico EPS respondeu sua mensagem e confirmou a visita ao terreno nesta quinta-feira às 9h.',
+    time: 'Hoje 09:30',
+    timestamp: nowInit - 3 * 3600 * 1000,
+    read: false,
+    badge: 'Mensagem',
+    icon: 'msg',
+    avatar: 'm9',
+    supplierName: 'Painel Monolítico EPS',
+    actionScreen: 'chat:c2',
+    actionLabel: 'Abrir conversa'
+  },
+  {
+    id: 'notif-3',
+    category: 'supplier_reply',
+    title: 'Projeto e memorial aprovados',
+    description: 'Traço Arquitetura concluiu a aprovação na prefeitura e anexou os arquivos em PDF e DWG na sua obra.',
+    time: 'Ontem',
+    timestamp: nowInit - 26 * 3600 * 1000,
+    read: true,
+    badge: 'Documentos',
+    icon: 'doc',
+    avatar: 'm3',
+    supplierName: 'Traço Arquitetura',
+    actionScreen: 'chat:c3',
+    actionLabel: 'Ver documentos'
+  },
+
+  // 2. Novos fornecedores
+  {
+    id: 'notif-4',
+    category: 'new_supplier',
+    title: 'Novo fornecedor em Atibaia e região',
+    description: 'Steel Frame Brasil se credenciou na OFIR! Estruturas industrializadas leves, rapidez na montagem e alta eficiência térmica.',
+    time: 'Hoje 08:00',
+    timestamp: nowInit - 5 * 3600 * 1000,
+    read: false,
+    badge: 'Novo Fornecedor',
+    icon: 'building',
+    avatar: 'm8',
+    supplierName: 'Steel Frame Brasil',
+    actionScreen: 'sup:Steel Frame Brasil',
+    actionLabel: 'Conhecer fornecedor'
+  },
+  {
+    id: 'notif-5',
+    category: 'new_supplier',
+    title: 'Fornecedor homologado: Vidros & Esquadrias Alpha',
+    description: 'Novo especialista em esquadrias de alumínio linha Gold e pele de vidro disponível com garantia estendida de 5 anos.',
+    time: 'Ontem',
+    timestamp: nowInit - 28 * 3600 * 1000,
+    read: false,
+    badge: 'Esquadrias',
+    icon: 'building',
+    avatar: 'm5',
+    supplierName: 'Vidros & Esquadrias Alpha',
+    actionScreen: 'sup:Vidros & Esquadrias Alpha',
+    actionLabel: 'Ver catálogo e preços'
+  },
+  {
+    id: 'notif-6',
+    category: 'new_supplier',
+    title: 'Ecopaineis Térmicos & Acústicos',
+    description: 'Novo fornecedor credenciado para sistemas térmicos e acústicos em paredes e lajes.',
+    time: '2 dias atrás',
+    timestamp: nowInit - 50 * 3600 * 1000,
+    read: true,
+    badge: 'Novo Fornecedor',
+    icon: 'building',
+    avatar: 'm7',
+    supplierName: 'Ecopaineis Térmicos & Acústicos',
+    actionScreen: 'fornecedores',
+    actionLabel: 'Ver fornecedores'
+  },
+
+  // 3. Novidades da plataforma
+  {
+    id: 'notif-7',
+    category: 'platform_news',
+    title: 'Novidade: Análise de Projeto Arquitetônico com IA',
+    description: 'Faça upload da planta em PDF para extrair áreas, estimar custos preliminares e gerar checklist automático de contratação.',
+    time: 'Hoje',
+    timestamp: nowInit - 2 * 3600 * 1000,
+    read: false,
+    badge: 'Nova Ferramenta',
+    icon: 'sparkles',
+    avatar: 'm2',
+    actionScreen: 'analise-projeto',
+    actionLabel: 'Testar Análise com IA'
+  },
+  {
+    id: 'notif-8',
+    category: 'platform_news',
+    title: 'Garantia de Resposta em 72h para Cotações',
+    description: 'Agora seus pedidos de orçamento contam com SLA oficial OFIR: contagem regressiva de 72h e suporte prioritário.',
+    time: 'Ontem',
+    timestamp: nowInit - 30 * 3600 * 1000,
+    read: true,
+    badge: 'Garantia OFIR',
+    icon: 'shield',
+    avatar: 'm1',
+    actionScreen: 'cotacoes',
+    actionLabel: 'Ver cotações ativas'
+  },
+  {
+    id: 'notif-9',
+    category: 'platform_news',
+    title: 'Pagamento Protegido por Etapa Concluída (Escrow)',
+    description: 'Contratos fechados pela plataforma contam com proteção total: o dinheiro fica protegido e só é liberado após seu aval da entrega.',
+    time: '3 dias atrás',
+    timestamp: nowInit - 72 * 3600 * 1000,
+    read: true,
+    badge: 'Segurança',
+    icon: 'checkDouble',
+    avatar: 'm4',
+    actionScreen: 'obra',
+    actionLabel: 'Ver etapas da obra'
+  }
+];
+
+let itemSeq = 1, quoteSeq = 1, orderSeq = 41, toastSeq = 1, convSeq = 4, addrSeq = 2, notifSeq = 10;
 
 interface State {
   user: User | null;
@@ -353,6 +511,13 @@ interface State {
   toasts: Toast[];
   toast: (title: string, text?: string) => void;
   dismissToast: (id: number) => void;
+
+  notifications: AppNotification[];
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  removeNotification: (id: string) => void;
+  clearAllNotifications: () => void;
+  addNotification: (n: Omit<AppNotification, 'id' | 'timestamp' | 'read' | 'time'> & { id?: string; time?: string; timestamp?: number; read?: boolean }) => void;
 }
 
 export const INITIAL_USER: User = {
@@ -822,7 +987,46 @@ export const useStore = create<State>((set, get) => ({
     set(s => ({ toasts: [...s.toasts, { id, title, text }] }));
     setTimeout(() => get().dismissToast(id), 3800);
   },
-  dismissToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) }))
+  dismissToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
+
+  notifications: INITIAL_NOTIFICATIONS,
+  addNotification: notif => {
+    const id = notif.id || 'notif-' + notifSeq++;
+    const timestamp = notif.timestamp || Date.now();
+    const time = notif.time || nowH();
+    const newNotif: AppNotification = {
+      ...notif,
+      id,
+      timestamp,
+      time,
+      read: notif.read ?? false
+    };
+    set(s => ({
+      notifications: [newNotif, ...s.notifications]
+    }));
+  },
+  markNotificationAsRead: id => {
+    set(s => ({
+      notifications: s.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+    }));
+  },
+  markAllNotificationsAsRead: () => {
+    set(s => ({
+      notifications: s.notifications.map(n => ({ ...n, read: true }))
+    }));
+    get().toast('Notificações atualizadas', 'Todas as notificações foram marcadas como lidas.');
+  },
+  removeNotification: id => {
+    set(s => ({
+      notifications: s.notifications.filter(n => n.id !== id)
+    }));
+  },
+  clearAllNotifications: () => {
+    set(s => ({
+      notifications: []
+    }));
+    get().toast('Notificações limpas');
+  }
 }));
 
 const BRL_FMT = (v: number) => 'R$ ' + v.toLocaleString('pt-BR');

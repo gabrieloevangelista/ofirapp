@@ -2,9 +2,9 @@ import { MATS, STAGES, SUPPLIERS, SYSTEMS, type Supplier } from './data';
 import { norm, serves } from './logic';
 
 /* =========================================================================
-   Análise de projeto arquitetônico com IA (Gemini)
-   - Recebe o PDF em base64, envia ao Gemini como inline data e recebe um
-     checklist estruturado (serviços por etapa + materiais com quantidades).
+   Análise de projeto arquitetônico com IA (OpenAI GPT)
+   - Recebe o arquivo (PDF/imagem) em base64, envia à API da OpenAI (GPT-4o)
+     e recebe um checklist estruturado (serviços por etapa + materiais com quantidades).
    - Sem chave de API, gera uma análise simulada a partir dos dados da obra.
    ========================================================================= */
 
@@ -62,7 +62,7 @@ export interface ProjectAnalysis {
   fileName?: string;
   fileSize?: string;
   createdAt: number;
-  source: 'gemini' | 'simulado';
+  source: 'gpt' | 'gemini' | 'simulado';
   model?: string;
   summary: ProjectSummary;
   items: ChecklistItem[];
@@ -80,7 +80,7 @@ export interface AnalyzeContext {
 }
 
 export interface AnalyzeInput {
-  /** PDF em base64 (sem o prefixo data:) — opcional: sem arquivo gera checklist pelos dados da obra */
+  /** PDF ou imagem em base64 (sem o prefixo data:) — opcional: sem arquivo gera checklist pelos dados da obra */
   base64?: string;
   fileName?: string;
   fileSize?: string;
@@ -90,8 +90,10 @@ export interface AnalyzeInput {
   signal?: AbortSignal;
 }
 
+export const GPT_DEFAULT_MODEL = 'gpt-4o';
+export const OPENAI_DEFAULT_MODEL = 'gpt-4o';
 export const GEMINI_DEFAULT_MODEL = 'gemini-2.5-flash';
-/** limite de inline data da API (20 MB por requisição), com folga para o prompt */
+/** limite de tamanho do arquivo em base64 (18 MB), com folga para o prompt */
 export const MAX_PDF_BYTES = 18 * 1024 * 1024;
 
 export const STAGE_ORDER = ['projeto', 'terreno', 'fundacao', 'estrutura', 'cobertura', 'instalacoes', 'esquadrias', 'acabamento', 'paisagismo', 'posobra'];
@@ -150,19 +152,19 @@ export function buildSupplierConsultancy(x: Supplier, obraCity: string, cat: str
 
   if (isLocal) {
     pillar = 'logistica';
-    tag = `📍 Mais próximo da obra (${dist} km)`;
+    tag = `Mais próximo da obra (${dist} km)`;
     reason = `Sede em ${x.c.split(',')[0]} (~${dist} km) · menor frete logístico, entrega rápida e equipe próxima para visita.`;
   } else if (isHighRep && idx === 1) {
     pillar = 'reputacao';
-    tag = `🏆 Maior reputação (★ ${x.r.toFixed(1).replace('.', ',')})`;
+    tag = `Maior reputação (${x.r.toFixed(1).replace('.', ',')} estrelas)`;
     reason = `Nota ${x.r.toFixed(1).replace('.', ',')} com ${x.a} contratos concluídos · referência de pontualidade e vistoria sem atrasos.`;
   } else if (isHighValue || idx === 2) {
     pillar = 'custo_beneficio';
-    tag = `💎 Melhor custo-benefício`;
+    tag = `Melhor custo-benefício`;
     reason = `Volume competitivo e frete econômico para a região · alta pontuação em eficiência de custo.`;
   } else {
     pillar = 'qualidade';
-    tag = `⚡ Excelência técnica`;
+    tag = `Excelência técnica`;
     reason = `Especialista técnico em ${catLabel(cat)} com garantia de responsabilidade técnica e conformidade.`;
   }
 
@@ -291,17 +293,17 @@ export function normalizeAnalysis(raw: RawAnalysis, input: AnalyzeInput, source:
     fileSize: input.fileSize,
     createdAt: Date.now(),
     source,
-    model: source === 'gemini' ? input.model || GEMINI_DEFAULT_MODEL : undefined,
+    model: source === 'gpt' ? input.model || GPT_DEFAULT_MODEL : source === 'gemini' ? input.model || GEMINI_DEFAULT_MODEL : undefined,
     summary,
     items
   };
 }
 
-/* ---------- Prompt e schema do Gemini ---------- */
+/* ---------- Prompt e schema do GPT / OpenAI ---------- */
 function buildPrompt(ctx: AnalyzeContext) {
   return [
     'Você é um engenheiro civil orçamentista brasileiro com experiência em obras residenciais.',
-    'Analise o projeto arquitetônico em PDF anexado (plantas, cortes, fachadas, quadro de áreas, memorial) e monte um CHECKLIST do que o proprietário precisa contratar e comprar para executar a obra, para que a plataforma envie pedidos de orçamento aos fornecedores.',
+    'Analise o projeto arquitetônico anexado (plantas, cortes, fachadas, quadro de áreas, memorial) e monte um CHECKLIST do que o proprietário precisa contratar e comprar para executar a obra, para que a plataforma envie pedidos de orçamento aos fornecedores.',
     '',
     `Dados informados pelo proprietário: obra "${ctx.obraName}", ${ctx.area} m², sistema construtivo pretendido: ${ctx.systemName}, cidade: ${ctx.city}${ctx.uf ? '/' + ctx.uf : ''}.`,
     '',
@@ -313,10 +315,10 @@ function buildPrompt(ctx: AnalyzeContext) {
     '- Se uma informação não estiver legível, estime pela área informada e reduza "confidence" (0 a 1).',
     '- "title" curto (até 60 caracteres). "detail" explica o que foi identificado no projeto que justifica o item (até 160 caracteres).',
     '- "priority": "alta" para o caminho crítico do início da obra (sondagem, fundação, estrutura), "media" para o meio e "baixa" para itens finais.',
-    '- Não inclua "projeto" se o PDF já é um projeto completo, exceto aprovação na prefeitura ou projetos complementares ausentes (estrutural, elétrico, hidráulico).',
+    '- Não inclua "projeto" se o arquivo já é um projeto completo, exceto aprovação na prefeitura ou projetos complementares ausentes (estrutural, elétrico, hidráulico).',
     '- Em "summary" resuma o projeto (tipo, área total construída, pavimentos, quartos, banheiros, sistema construtivo indicado, padrão de acabamento, lista de ambientes e observações relevantes para orçamento).',
-    '- Se o PDF claramente não for um projeto de construção, retorne isProject=false e items vazio.',
-    '- Responda sempre em português do Brasil.'
+    '- Se o arquivo claramente não for um projeto de construção, retorne isProject=false e items vazio.',
+    '- Responda sempre em português do Brasil no formato JSON estrito.'
   ].join('\n');
 }
 
@@ -368,7 +370,83 @@ export class ProjectAIError extends Error {
   }
 }
 
-async function callGemini(input: AnalyzeInput): Promise<RawAnalysis> {
+export async function callOpenAI(input: AnalyzeInput): Promise<RawAnalysis> {
+  const model = input.model || GPT_DEFAULT_MODEL;
+  const url = 'https://api.openai.com/v1/chat/completions';
+  const isImage = input.fileName && /\.(png|jpe?g|webp|gif)$/i.test(input.fileName);
+
+  const contentParts: any[] = [
+    { type: 'text', text: buildPrompt(input.ctx) }
+  ];
+
+  if (input.base64) {
+    if (isImage) {
+      const ext = input.fileName?.toLowerCase().split('.').pop() || 'jpeg';
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      contentParts.push({
+        type: 'image_url',
+        image_url: { url: `data:${mime};base64,${input.base64}` }
+      });
+    } else {
+      contentParts.push({
+        type: 'file',
+        file: {
+          file_data: `data:application/pdf;base64,${input.base64}`,
+          filename: input.fileName || 'projeto.pdf'
+        }
+      });
+    }
+  }
+
+  const systemInstructions = [
+    'Você é um engenheiro civil orçamentista sênior brasileiro, especialista em métodos construtivos modernos (EPS, Steel Frame, Wood Frame, Drywall) e orçamentação precisa de obras.',
+    'Analise as pranchas e dados fornecidos e monte um CHECKLIST detalhado.',
+    'Retorne OBRIGATORIAMENTE um objeto JSON válido seguindo a estrutura: {"isProject": boolean, "summary": {...}, "items": [...]}'
+  ].join('\n');
+
+  const body = {
+    model,
+    temperature: 0.2,
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: systemInstructions },
+      { role: 'user', content: contentParts }
+    ]
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${input.apiKey}`
+      },
+      body: JSON.stringify(body),
+      signal: input.signal
+    });
+  } catch (e: any) {
+    if (e?.name === 'AbortError') throw e;
+    throw new ProjectAIError('network', 'Não foi possível conectar à API da OpenAI (GPT). Verifique sua conexão.');
+  }
+
+  const json: any = await res.json().catch(() => null);
+  if (!res.ok) {
+    const msg = json?.error?.message || `Erro ${res.status} ao analisar o projeto com GPT.`;
+    throw new ProjectAIError('api', msg);
+  }
+
+  const rawText: string = json?.choices?.[0]?.message?.content || '';
+  try {
+    return JSON.parse(rawText.replace(/^```json\s*|```$/g, '').trim());
+  } catch {
+    throw new ProjectAIError('parse', 'O GPT retornou uma resposta que não pôde ser interpretada como JSON. Tente novamente.');
+  }
+}
+
+export const callGPT = callOpenAI;
+
+export async function callGemini(input: AnalyzeInput): Promise<RawAnalysis> {
   const model = input.model || GEMINI_DEFAULT_MODEL;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const body = {
@@ -414,7 +492,7 @@ async function callGemini(input: AnalyzeInput): Promise<RawAnalysis> {
   }
 }
 
-/* ---------- Análise simulada (sem chave de API ou sem PDF) ---------- */
+/* ---------- Análise simulada (sem chave de API ou sem arquivo) ---------- */
 export function buildSimulatedRaw(ctx: AnalyzeContext): RawAnalysis {
   const a = Math.max(40, ctx.area || 120);
   const quartos = Math.max(1, Math.min(6, Math.round(a / 100)));
@@ -480,16 +558,22 @@ const wait = (ms: number, signal?: AbortSignal) =>
     });
   });
 
-/** ponto de entrada: usa o Gemini quando há PDF + chave; senão, análise simulada */
+/** ponto de entrada: usa o GPT quando há arquivo + chave; senão, análise simulada */
 export async function analyzeProject(input: AnalyzeInput): Promise<ProjectAnalysis> {
   if (input.base64 && input.apiKey) {
-    const raw = await callGemini(input);
+    const isGeminiKey = input.apiKey.startsWith('AIza');
+    const isGeminiModel = input.model?.includes('gemini');
+    const useGemini = isGeminiKey || isGeminiModel;
+
+    const raw = useGemini ? await callGemini(input) : await callOpenAI(input);
+    const source: 'gpt' | 'gemini' = useGemini ? 'gemini' : 'gpt';
+
     if (raw.isProject === false) {
-      throw new ProjectAIError('not_project', 'O arquivo enviado não parece ser um projeto arquitetônico. Envie as plantas da obra em PDF.');
+      throw new ProjectAIError('not_project', 'O arquivo enviado não parece ser um projeto arquitetônico. Envie as plantas da obra em PDF ou imagem.');
     }
-    const result = normalizeAnalysis(raw, input, 'gemini');
+    const result = normalizeAnalysis(raw, input, source);
     if (!result.items.length) {
-      throw new ProjectAIError('parse', 'A IA não conseguiu identificar itens no projeto. Tente um PDF com as plantas legíveis.');
+      throw new ProjectAIError('parse', 'A IA não conseguiu identificar itens no projeto. Tente um arquivo com as plantas legíveis.');
     }
     return result;
   }

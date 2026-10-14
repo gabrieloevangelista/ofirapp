@@ -4,7 +4,8 @@ import {
   catOf, filterSuppliers, filterSummary, getSupplierDetails, initials, rate,
   segList, simulate, stageName, sysName, useOrc, useStore,
   calcObraProgress, calcQuoteCountdown, calc24hCancellation,
-  type Supplier, type ServiceItem, type Message, type Conversation, type Obra, type ObraStage
+  type Supplier, type ServiceItem, type Message, type Conversation, type Obra, type ObraStage,
+  type AppNotification, type NotificationCategory
 } from '@ofirapp/core';
 import { CustomSelect } from './components/CustomSelect';
 import { ProjectAnalyzer } from './components/ProjectAnalyzer';
@@ -46,7 +47,7 @@ const LogoIcon = () => (
 );
 
 /* ---------- Types ---------- */
-type ScreenView = null | 'obra' | 'msgs' | 'orc' | 'checkout' | 'paid' | 'hist' | 'enderecos' | 'perfil' | 'config' | 'cotacoes' | 'analise-projeto' | `cotacao:${string}` | `chat:${string}` | `ped:${string}`;
+type ScreenView = null | 'obra' | 'msgs' | 'orc' | 'checkout' | 'paid' | 'hist' | 'enderecos' | 'perfil' | 'config' | 'cotacoes' | 'analise-projeto' | 'notificacoes' | `cotacao:${string}` | `chat:${string}` | `ped:${string}`;
 
 /* ---------- Componente: Relógio / SLA de 72 horas para Cotações ---------- */
 function WebQuoteCountdown({ conv }: { conv: Conversation }) {
@@ -141,7 +142,9 @@ export default function App() {
     quotes, requestQuotes, orders, checkout, lastCheckout, confirmOrder,
     cancelOrder, cancelQuote, deleteQuote,
     toasts, toast,
-    obra, updateObra, setStageStatus, advanceStage
+    obra, updateObra, setStageStatus, advanceStage,
+    notifications, addNotification, markNotificationAsRead, markAllNotificationsAsRead,
+    removeNotification, clearAllNotifications
   } = useStore();
 
   const { items, groups, totals, curAddress } = useOrc();
@@ -149,6 +152,27 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // Notifications state
+  const notifBellRef = useRef<HTMLDivElement>(null);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifPopoverTab, setNotifPopoverTab] = useState<'all' | 'supplier_reply' | 'new_supplier' | 'platform_news'>('all');
+  const [notifScreenTab, setNotifScreenTab] = useState<'all' | 'supplier_reply' | 'new_supplier' | 'platform_news' | 'unread'>('all');
+  const [notifSearch, setNotifSearch] = useState('');
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notifBellRef.current && !notifBellRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    if (notifOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [notifOpen]);
 
   // Navigation & state
   const [activeScreen, setActiveScreen] = useState<ScreenView>(null);
@@ -162,6 +186,77 @@ export default function App() {
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [showSignupPass, setShowSignupPass] = useState(false);
   const [payMethod, setPayMethod] = useState<'pix' | 'card' | 'boleto'>('pix');
+
+  const handleNotificationClick = (notif: AppNotification) => {
+    markNotificationAsRead(notif.id);
+    setNotifOpen(false);
+    if (!notif.actionScreen) return;
+
+    if (notif.actionScreen.startsWith('chat:')) {
+      setActiveScreen(notif.actionScreen as ScreenView);
+    } else if (notif.actionScreen.startsWith('cotacao:')) {
+      setActiveScreen(notif.actionScreen as ScreenView);
+    } else if (notif.actionScreen.startsWith('sup:')) {
+      const supName = notif.actionScreen.replace('sup:', '');
+      openProfileByName(supName);
+      setActiveScreen(null);
+    } else if (notif.actionScreen === 'fornecedores') {
+      setActiveScreen(null);
+      document.getElementById('fornecedores')?.scrollIntoView({ behavior: 'smooth' });
+    } else if (notif.actionScreen === 'analise-projeto') {
+      setActiveScreen('analise-projeto');
+    } else if (notif.actionScreen === 'cotacoes') {
+      setActiveScreen('cotacoes');
+    } else if (notif.actionScreen === 'obra') {
+      setActiveScreen('obra');
+    } else {
+      setActiveScreen(notif.actionScreen as ScreenView);
+    }
+  };
+
+  const simulateSupplierReply = () => {
+    addNotification({
+      category: 'supplier_reply',
+      title: 'Nova mensagem de Base Forte Fundações',
+      description: 'Olá Eduardo! Confirmamos o envio da sondagem e a liberação da equipe para o início da armação na segunda-feira.',
+      badge: 'Mensagem',
+      icon: 'msg',
+      avatar: 'm1',
+      supplierName: 'Base Forte Fundações',
+      actionScreen: 'chat:c1',
+      actionLabel: 'Abrir chat'
+    });
+    toast('Nova notificação', 'Resposta de fornecedor recebida.');
+  };
+
+  const simulateNewSupplier = () => {
+    addNotification({
+      category: 'new_supplier',
+      title: 'Novo fornecedor: Engenharia Solar & Térmica',
+      description: 'Novo especialista em energia fotovoltaica e aquecimento solar credenciado na sua cidade com condições exclusivas de lançamento.',
+      badge: 'Novo Fornecedor',
+      icon: 'building',
+      avatar: 'm6',
+      supplierName: 'Engenharia Solar & Térmica',
+      actionScreen: 'fornecedores',
+      actionLabel: 'Ver no catálogo'
+    });
+    toast('Nova notificação', 'Novo fornecedor credenciado.');
+  };
+
+  const simulatePlatformNews = () => {
+    addNotification({
+      category: 'platform_news',
+      title: 'Novidade: Histórico de medições e laudos fotográficos',
+      description: 'Agora você pode anexar fotos e diário de obras em cada etapa contratada para comprovação de qualidade.',
+      badge: 'Atualização',
+      icon: 'sparkles',
+      avatar: 'm7',
+      actionScreen: 'obra',
+      actionLabel: 'Ver na Minha Obra'
+    });
+    toast('Nova notificação', 'Novidade da plataforma disponível.');
+  };
   const [isPaying, setIsPaying] = useState(false);
   const [editingObra, setEditingObra] = useState(false);
   const [obraForm, setObraForm] = useState({ name: obra.name, area: obra.area, system: obra.system, city: obra.city, uf: obra.uf });
@@ -531,6 +626,152 @@ export default function App() {
             {items.length > 0 && <span className="cnt">{items.length}</span>}
           </button>
 
+          {/* BOTÃO E POPOVER DE NOTIFICAÇÕES */}
+          <div className="notif-bell-wrap" ref={notifBellRef}>
+            <button
+              className={`ghost sq notif-btn ${unreadCount > 0 ? 'has-unread' : ''} ${notifOpen ? 'open' : ''}`}
+              aria-label={`Notificações (${unreadCount} não lidas)`}
+              title="Notificações"
+              onClick={() => setNotifOpen(!notifOpen)}
+            >
+              <Svg k="bell" s={17} />
+              {unreadCount > 0 && (
+                <span className="notif-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
+              )}
+            </button>
+
+            {notifOpen && (
+              <div className="notif-popover" role="dialog" aria-label="Painel de notificações">
+                <div className="notif-popover-head">
+                  <div className="notif-popover-title-row">
+                    <h4>Notificações</h4>
+                    {unreadCount > 0 ? (
+                      <span className="notif-count-pill">{unreadCount} nova{unreadCount > 1 ? 's' : ''}</span>
+                    ) : (
+                      <span className="notif-count-pill" style={{ opacity: 0.7 }}>Em dia</span>
+                    )}
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      className="notif-mark-read-btn"
+                      onClick={() => markAllNotificationsAsRead()}
+                    >
+                      Marcar lidas
+                    </button>
+                  )}
+                </div>
+
+                {/* Filtros em Pílulas */}
+                <div className="notif-popover-tabs">
+                  <button
+                    type="button"
+                    className={`notif-tab-pill ${notifPopoverTab === 'all' ? 'active' : ''}`}
+                    onClick={() => setNotifPopoverTab('all')}
+                  >
+                    Todas ({notifications.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`notif-tab-pill ${notifPopoverTab === 'supplier_reply' ? 'active' : ''}`}
+                    onClick={() => setNotifPopoverTab('supplier_reply')}
+                  >
+                    <Svg k="msg" s={12} color="currentColor" />
+                    Respostas ({notifications.filter(n => n.category === 'supplier_reply').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`notif-tab-pill ${notifPopoverTab === 'new_supplier' ? 'active' : ''}`}
+                    onClick={() => setNotifPopoverTab('new_supplier')}
+                  >
+                    <Svg k="building" s={12} color="currentColor" />
+                    Novos ({notifications.filter(n => n.category === 'new_supplier').length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`notif-tab-pill ${notifPopoverTab === 'platform_news' ? 'active' : ''}`}
+                    onClick={() => setNotifPopoverTab('platform_news')}
+                  >
+                    <Svg k="sparkles" s={12} color="currentColor" />
+                    Novidades ({notifications.filter(n => n.category === 'platform_news').length})
+                  </button>
+                </div>
+
+                {/* Lista de Notificações no Popover */}
+                <div className="notif-list-container">
+                  {(() => {
+                    const filtered = notifications.filter(n => {
+                      if (notifPopoverTab === 'all') return true;
+                      return n.category === notifPopoverTab;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="notif-empty">
+                          <div className="notif-empty-icon">
+                            <Svg k="bell" s={22} color="var(--accent)" />
+                          </div>
+                          <strong>Nenhuma notificação</strong>
+                          <p>Tudo limpo por aqui nesta categoria.</p>
+                        </div>
+                      );
+                    }
+
+                    return filtered.slice(0, 5).map(n => {
+                      const iconKey = n.icon || (n.category === 'supplier_reply' ? 'msg' : n.category === 'new_supplier' ? 'building' : 'sparkles');
+                      const catLabel = n.category === 'supplier_reply' ? 'Resposta de Fornecedor' : n.category === 'new_supplier' ? 'Novo Fornecedor' : 'Novidade da Plataforma';
+
+                      return (
+                        <div
+                          key={n.id}
+                          className={`notif-item ${!n.read ? 'unread' : ''}`}
+                          onClick={() => handleNotificationClick(n)}
+                        >
+                          <div className={`notif-icon-box ${n.category} ${n.avatar ? `media ${n.avatar}` : ''}`}>
+                            <Svg k={iconKey} s={18} color="currentColor" />
+                          </div>
+                          <div className="notif-content">
+                            <div className="notif-header-row">
+                              <span className="notif-title">{n.title}</span>
+                              <span className="notif-time">{n.time}</span>
+                            </div>
+                            <p className="notif-desc">{n.description}</p>
+                            <div className="notif-footer-row">
+                              <span className={`notif-cat-tag ${n.category}`}>
+                                <Svg k={iconKey} s={11} color="currentColor" />
+                                {n.badge || catLabel}
+                              </span>
+                              {n.actionLabel && (
+                                <span className="notif-action-hint">
+                                  {n.actionLabel}
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="m9 18 6-6-6-6" /></svg>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+
+                <div className="notif-popover-foot">
+                  <button
+                    type="button"
+                    className="notif-view-all-btn"
+                    onClick={() => {
+                      setNotifOpen(false);
+                      setActiveScreen('notificacoes');
+                    }}
+                  >
+                    <span>Ver todas as notificações ({notifications.length})</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="m9 18 6-6-6-6" /></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <button className="ghost sq" aria-label="Buscar" title="Buscar (Ctrl+K)" onClick={() => setSpotOpen(true)}>
             <Svg k="search" s={16} />
           </button>
@@ -548,6 +789,10 @@ export default function App() {
               {menuOpen && (
                 <div className="umenu" role="menu" style={{ display: 'block' }}>
                   <div className="who"><b>{user.name}</b><span>{user.email}</span></div>
+                  <button role="menuitem" onClick={() => { setMenuOpen(false); setActiveScreen('notificacoes'); }}>
+                    <Svg k="bell" s={16} /> Notificações
+                    {unreadCount > 0 && <span className="umenu-badge">{unreadCount}</span>}
+                  </button>
                   <button role="menuitem" onClick={() => { setMenuOpen(false); setActiveScreen('obra'); }}>
                     <Svg k="home" s={16} /> Minha obra
                   </button>
@@ -702,7 +947,7 @@ export default function App() {
               <Svg k="doc" s={28} sw={1.8} />
             </div>
             <div>
-              <span className="tag-ai">★ Análise inteligente de projeto</span>
+              <span className="tag-ai"><Svg k="sparkles" s={12} color="#c9f2e3" /> Análise inteligente de projeto</span>
               <h3>Anexe o projeto arquitetônico em PDF e receba o checklist da obra</h3>
               <p>A IA lê as plantas, calcula quantitativos e sugere os melhores fornecedores da sua região. Depois você envia as solicitações de orçamento de uma vez só.</p>
             </div>
@@ -1208,7 +1453,7 @@ export default function App() {
       {activeScreen && (
         <div className="screen" id="screen" style={{ display: 'flex' }}>
           <div className="screen-scrim" onClick={() => setActiveScreen(null)}></div>
-          <div className={`screen-panel ${activeScreen === 'analise-projeto' ? 'wide' : ''}`} id="screen-panel">
+          <div className={`screen-panel ${activeScreen === 'analise-projeto' || activeScreen === 'notificacoes' ? 'wide' : ''}`} id="screen-panel">
             <header className="screen-head">
               {activeScreen?.startsWith('chat:') || activeScreen?.startsWith('cotacao:') || activeScreen?.startsWith('ped:') || activeScreen === 'checkout' || activeScreen === 'paid' ? (
                 <button className="icon-btn" aria-label="Voltar" onClick={() => {
@@ -1221,6 +1466,7 @@ export default function App() {
                 </button>
               ) : null}
               <h3 id="screen-title">
+                {activeScreen === 'notificacoes' && 'Notificações'}
                 {activeScreen === 'obra' && 'Minha obra'}
                 {activeScreen === 'analise-projeto' && 'Análise de projeto arquitetônico com IA'}
                 {activeScreen === 'msgs' && 'Mensagens'}
@@ -2539,6 +2785,13 @@ export default function App() {
                   </div>
 
                   <div className="list" style={{ marginTop: 16 }}>
+                    <button onClick={() => setActiveScreen('notificacoes')}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        Notificações da obra
+                        {unreadCount > 0 && <span className="notif-count-pill">{unreadCount}</span>}
+                      </span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
                     {user && (
                       <button onClick={() => setActiveScreen('perfil')}>
                         <span>Meu perfil</span>
@@ -2555,6 +2808,291 @@ export default function App() {
                     </button>
                   </div>
                 </>
+              )}
+
+              {/* TELA: NOTIFICAÇÕES COMPLETAS */}
+              {activeScreen === 'notificacoes' && (
+                <div className="notif-screen-wrap">
+                  {/* Hero / Resumo */}
+                  <div className="notif-screen-hero">
+                    <div>
+                      <h3>
+                        <Svg k="bell" s={20} color="var(--accent)" />
+                        Central de Notificações
+                      </h3>
+                      <p>
+                        Acompanhe respostas de fornecedores, novos credenciados na sua região e novidades da plataforma OFIR.
+                      </p>
+                    </div>
+                    <div className="notif-screen-stats">
+                      <div className="notif-stat-box">
+                        <b>{notifications.length}</b>
+                        <span>Total</span>
+                      </div>
+                      <div className="notif-stat-box">
+                        <b style={{ color: unreadCount > 0 ? '#e11d48' : 'var(--ok)' }}>{unreadCount}</b>
+                        <span>Novas</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Barra de Ações & Simulação para Testes */}
+                  <div className="notif-screen-toolbar">
+                    <div className="notif-sim-row">
+                      <span className="notif-sim-label">Simular Notificações:</span>
+                      <div className="notif-sim-buttons">
+                        <button
+                          type="button"
+                          className="notif-sim-btn"
+                          onClick={simulateSupplierReply}
+                          title="Simular recebimento de proposta ou mensagem de fornecedor"
+                        >
+                          <Svg k="msg" s={13} color="var(--accent)" />
+                          Resposta de Fornecedor
+                        </button>
+                        <button
+                          type="button"
+                          className="notif-sim-btn"
+                          onClick={simulateNewSupplier}
+                          title="Simular cadastro de novo fornecedor credenciado"
+                        >
+                          <Svg k="building" s={13} color="var(--accent)" />
+                          Novo Fornecedor
+                        </button>
+                        <button
+                          type="button"
+                          className="notif-sim-btn"
+                          onClick={simulatePlatformNews}
+                          title="Simular nova funcionalidade ou melhoria na plataforma"
+                        >
+                          <Svg k="sparkles" s={13} color="var(--accent)" />
+                          Novidade da Plataforma
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+                      <div className="notif-search-box" style={{ flex: 1, minWidth: 200 }}>
+                        <Svg k="search" s={15} color="var(--muted)" />
+                        <input
+                          type="text"
+                          placeholder="Buscar por fornecedor, assunto ou texto..."
+                          value={notifSearch}
+                          onChange={e => setNotifSearch(e.target.value)}
+                        />
+                        {notifSearch && (
+                          <button
+                            type="button"
+                            className="link"
+                            style={{ fontSize: 11, color: 'var(--muted)' }}
+                            onClick={() => setNotifSearch('')}
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        {unreadCount > 0 && (
+                          <button
+                            type="button"
+                            className="ghost sm"
+                            onClick={() => markAllNotificationsAsRead()}
+                          >
+                            <Svg k="checkDouble" s={14} />
+                            Marcar lidas
+                          </button>
+                        )}
+                        {notifications.length > 0 && (
+                          <button
+                            type="button"
+                            className="ghost sm danger"
+                            onClick={() => clearAllNotifications()}
+                            title="Limpar todas as notificações"
+                          >
+                            <Svg k="trash" s={14} />
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Filtros em Abas */}
+                  <div className="notif-filter-chips">
+                    <button
+                      type="button"
+                      className={`notif-filter-chip ${notifScreenTab === 'all' ? 'active' : ''}`}
+                      onClick={() => setNotifScreenTab('all')}
+                    >
+                      Todas <b>{notifications.length}</b>
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-filter-chip ${notifScreenTab === 'supplier_reply' ? 'active' : ''}`}
+                      onClick={() => setNotifScreenTab('supplier_reply')}
+                    >
+                      <Svg k="msg" s={13} color="currentColor" />
+                      Respostas de Fornecedores <b>{notifications.filter(n => n.category === 'supplier_reply').length}</b>
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-filter-chip ${notifScreenTab === 'new_supplier' ? 'active' : ''}`}
+                      onClick={() => setNotifScreenTab('new_supplier')}
+                    >
+                      <Svg k="building" s={13} color="currentColor" />
+                      Novos Fornecedores <b>{notifications.filter(n => n.category === 'new_supplier').length}</b>
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-filter-chip ${notifScreenTab === 'platform_news' ? 'active' : ''}`}
+                      onClick={() => setNotifScreenTab('platform_news')}
+                    >
+                      <Svg k="sparkles" s={13} color="currentColor" />
+                      Novidades da Plataforma <b>{notifications.filter(n => n.category === 'platform_news').length}</b>
+                    </button>
+                    <button
+                      type="button"
+                      className={`notif-filter-chip ${notifScreenTab === 'unread' ? 'active' : ''}`}
+                      onClick={() => setNotifScreenTab('unread')}
+                    >
+                      Não lidas <b>{unreadCount}</b>
+                    </button>
+                  </div>
+
+                  {/* Lista de Notificações */}
+                  <div className="notif-cards-grid">
+                    {(() => {
+                      const query = notifSearch.toLowerCase().trim();
+                      const filtered = notifications.filter(n => {
+                        // Category tab filter
+                        if (notifScreenTab === 'unread') {
+                          if (n.read) return false;
+                        } else if (notifScreenTab !== 'all') {
+                          if (n.category !== notifScreenTab) return false;
+                        }
+                        // Search filter
+                        if (query) {
+                          const matchTitle = n.title.toLowerCase().includes(query);
+                          const matchDesc = n.description.toLowerCase().includes(query);
+                          const matchSup = n.supplierName?.toLowerCase().includes(query);
+                          if (!matchTitle && !matchDesc && !matchSup) return false;
+                        }
+                        return true;
+                      });
+
+                      if (filtered.length === 0) {
+                        return (
+                          <div className="notif-empty" style={{ padding: '60px 20px', background: 'var(--surface)', borderRadius: 14, border: '1px dashed var(--line-2)' }}>
+                            <div className="notif-empty-icon" style={{ width: 56, height: 56 }}>
+                              <Svg k="bell" s={26} />
+                            </div>
+                            <strong style={{ fontSize: 16 }}>Nenhuma notificação encontrada</strong>
+                            <p style={{ maxWidth: 300 }}>
+                              {notifSearch
+                                ? 'Nenhum resultado corresponde à sua pesquisa. Tente outros termos.'
+                                : notifScreenTab === 'unread'
+                                ? 'Você leu todas as notificações! Bom trabalho.'
+                                : 'Você não possui notificações nesta categoria no momento.'}
+                            </p>
+                            {notifSearch && (
+                              <button className="btn sm" type="button" onClick={() => setNotifSearch('')}>
+                                Limpar busca
+                              </button>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      return filtered.map(n => {
+                        const iconKey = n.icon || (n.category === 'supplier_reply' ? 'msg' : n.category === 'new_supplier' ? 'building' : 'sparkles');
+                        const catLabel = n.category === 'supplier_reply'
+                          ? 'Resposta de Fornecedor'
+                          : n.category === 'new_supplier'
+                          ? 'Novo Fornecedor'
+                          : 'Novidade da Plataforma';
+
+                        return (
+                          <div
+                            key={n.id}
+                            className={`notif-card ${!n.read ? 'unread' : ''}`}
+                          >
+                            <div className={`notif-icon-box ${n.category} ${n.avatar ? `media ${n.avatar}` : ''}`}>
+                              <Svg k={iconKey} s={19} color="currentColor" />
+                            </div>
+
+                            <div className="notif-content">
+                              <div className="notif-header-row">
+                                <span className="notif-title" style={{ fontSize: 14.5 }}>{n.title}</span>
+                                <span className="notif-time">{n.time}</span>
+                              </div>
+
+                              <p className="notif-desc" style={{ WebkitLineClamp: 'unset', fontSize: 13, marginTop: 4 }}>
+                                {n.description}
+                              </p>
+
+                              <div className="notif-footer-row" style={{ marginTop: 10, flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <span className={`notif-cat-tag ${n.category}`}>
+                                    <Svg k={iconKey} s={11} color="currentColor" />
+                                    {catLabel}
+                                  </span>
+                                  {n.badge && (
+                                    <span style={{ fontSize: 11, color: 'var(--muted)', background: 'var(--surface-2)', padding: '2px 8px', borderRadius: 999, fontWeight: 500 }}>
+                                      {n.badge}
+                                    </span>
+                                  )}
+                                  {n.supplierName && (
+                                    <span style={{ fontSize: 11.5, color: 'var(--text-2)', fontWeight: 600 }}>
+                                      {n.supplierName}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                                  {n.actionLabel && (
+                                    <button
+                                      type="button"
+                                      className="btn sm"
+                                      style={{ height: 28, fontSize: 12, padding: '0 12px' }}
+                                      onClick={() => handleNotificationClick(n)}
+                                    >
+                                      {n.actionLabel}
+                                    </button>
+                                  )}
+                                  {!n.read && (
+                                    <button
+                                      type="button"
+                                      className="ghost sm"
+                                      style={{ height: 28, fontSize: 11, padding: '0 8px' }}
+                                      onClick={() => markNotificationAsRead(n.id)}
+                                      title="Marcar como lida"
+                                    >
+                                      Lida
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              className="notif-card-del-btn"
+                              aria-label="Excluir notificação"
+                              title="Excluir"
+                              onClick={e => {
+                                e.stopPropagation();
+                                removeNotification(n.id);
+                              }}
+                            >
+                              <Svg k="trash" s={14} />
+                            </button>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
               )}
             </div>
 
@@ -2740,9 +3278,11 @@ export default function App() {
                       {d.reviews.map((rv, idx) => (
                         <div key={idx} className="rv">
                           <div className="rv-who"><span className="rv-av">{initials(rv.n)}</span><div><b>{rv.n}</b><small>{rv.o}</small></div></div>
-                          <div className="rv-stars">
-                            {'★'.repeat(rv.r)}
-                            <span>{rv.d}</span>
+                          <div className="rv-stars" style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            {Array.from({ length: rv.r }).map((_, si) => (
+                              <Svg key={si} k="star" s={13} color="var(--accent)" />
+                            ))}
+                            <span style={{ marginLeft: 6 }}>{rv.d}</span>
                           </div>
                           <p>{rv.txt}</p>
                         </div>
@@ -2781,7 +3321,9 @@ export default function App() {
             <div className="pf-bar">
               <div>
                 <b>{x.n}</b>
-                <span>★ {rate(x.r)} · {x.a} avaliações</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Svg k="star" s={13} color="var(--accent)" /> {rate(x.r)} · {x.a} avaliações
+                </span>
               </div>
               <button className="ghost sq" aria-label="Enviar mensagem" onClick={() => { const cid = startQuote(x, false); setProfileSup(null); setActiveScreen(`chat:${cid}`); }}>
                 <Svg k="msg" s={18} />

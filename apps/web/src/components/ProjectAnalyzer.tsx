@@ -1,13 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ICONS, SUPPLIERS, MAX_PDF_BYTES, GEMINI_DEFAULT_MODEL, ProjectAIError,
+  ICONS, SUPPLIERS, MAX_PDF_BYTES, GPT_DEFAULT_MODEL, ProjectAIError,
   analyzeProject, catLabel, fmtBytes, rate, serves, useStore,
   type ChecklistItem
 } from '@ofirapp/core';
 import '../project-ai.css';
 
-const GEMINI_KEY: string | undefined = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-const GEMINI_MODEL: string = (import.meta as any).env?.VITE_GEMINI_MODEL || GEMINI_DEFAULT_MODEL;
+const OPENAI_KEY: string | undefined =
+  (import.meta as any).env?.VITE_OPENAI_API_KEY ||
+  (import.meta as any).env?.VITE_GPT_API_KEY ||
+  (import.meta as any).env?.VITE_GEMINI_API_KEY;
+const OPENAI_MODEL: string =
+  (import.meta as any).env?.VITE_OPENAI_MODEL ||
+  (import.meta as any).env?.VITE_GPT_MODEL ||
+  GPT_DEFAULT_MODEL;
 
 const Ico = ({ k, s = 16, sw = 2 }: { k: string; s?: number; sw?: number }) => {
   const d = ICONS[k];
@@ -27,9 +33,9 @@ const Sparkle = ({ s = 16 }: { s?: number }) => (
 );
 
 const STEPS = [
-  'Lendo as pranchas do PDF',
+  'Lendo pranchas e arquivos do projeto',
   'Identificando ambientes e áreas',
-  'Calculando quantitativos',
+  'Calculando quantitativos com GPT-4o',
   'Montando o checklist por etapa',
   'Selecionando fornecedores da região'
 ];
@@ -85,9 +91,10 @@ export function ProjectAnalyzer({
   const pickFile = (f: File | undefined | null) => {
     setError(null);
     if (!f) return;
-    const isPdf = f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
-    if (!isPdf) { setError('Envie o projeto em formato PDF.'); return; }
-    if (f.size > MAX_PDF_BYTES) { setError(`O PDF tem ${fmtBytes(f.size)}. O limite é ${fmtBytes(MAX_PDF_BYTES)} — exporte as pranchas principais em um arquivo menor.`); return; }
+    const isAllowed = /\.(pdf|png|jpe?g|webp)$/i.test(f.name) ||
+      ['application/pdf', 'image/png', 'image/jpeg', 'image/webp'].includes(f.type);
+    if (!isAllowed) { setError('Envie o projeto em formato PDF ou imagem (PNG, JPG, WEBP).'); return; }
+    if (f.size > MAX_PDF_BYTES) { setError(`O arquivo tem ${fmtBytes(f.size)}. O limite é ${fmtBytes(MAX_PDF_BYTES)} — envie um arquivo menor.`); return; }
     setFile(f);
   };
 
@@ -103,8 +110,8 @@ export function ProjectAnalyzer({
         base64,
         fileName: withFile && file ? file.name : undefined,
         fileSize: withFile && file ? fmtBytes(file.size) : undefined,
-        apiKey: GEMINI_KEY,
-        model: GEMINI_MODEL,
+        apiKey: OPENAI_KEY,
+        model: OPENAI_MODEL,
         signal: ctrl.signal,
         ctx: { obraName: obra.name, area: obra.area, systemKey: obra.systemKey, systemName: obra.system, city, uf }
       });
@@ -113,7 +120,7 @@ export function ProjectAnalyzer({
       setTab('svc');
       setPhase('result');
       setFile(null);
-      toast('Checklist pronto', `${result.items.length} itens identificados${result.source === 'gemini' ? ' pela IA' : ''}.`);
+      toast('Checklist pronto', `${result.items.length} itens identificados${result.source === 'gpt' ? ' pelo GPT' : result.source === 'gemini' ? ' pelo Gemini' : ''}.`);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       setError(e instanceof ProjectAIError ? e.message : 'Não foi possível analisar o projeto. Tente novamente.');
@@ -181,7 +188,7 @@ export function ProjectAnalyzer({
           <input
             ref={inputRef}
             type="file"
-            accept="application/pdf,.pdf"
+            accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
             hidden
             id="pa-file-input"
             onChange={e => { pickFile(e.target.files?.[0]); e.target.value = ''; }}
@@ -189,7 +196,7 @@ export function ProjectAnalyzer({
           {file ? (
             <div className="pa-file">
               <span className="pa-file-ico"><Ico k="doc" s={22} /></span>
-              <span className="pa-file-txt"><b>{file.name}</b><small>{fmtBytes(file.size)} · PDF pronto para análise</small></span>
+              <span className="pa-file-txt"><b>{file.name}</b><small>{fmtBytes(file.size)} · Arquivo pronto para análise com GPT</small></span>
               <button className="icon-btn" type="button" aria-label="Remover arquivo" onClick={e => { e.stopPropagation(); setFile(null); }}>
                 <Ico k="x" s={15} />
               </button>
@@ -197,8 +204,8 @@ export function ProjectAnalyzer({
           ) : (
             <>
               <span className="pa-drop-ico"><Ico k="projeto" s={26} sw={1.6} /></span>
-              <b>Arraste o PDF do projeto arquitetônico</b>
-              <span>ou <u>clique para escolher</u> · até {fmtBytes(MAX_PDF_BYTES)}</span>
+              <b>Arraste a planta ou PDF do projeto arquitetônico</b>
+              <span>ou <u>clique para escolher</u> · PDF ou imagem até {fmtBytes(MAX_PDF_BYTES)}</span>
             </>
           )}
         </div>
@@ -212,15 +219,15 @@ export function ProjectAnalyzer({
         </div>
 
         <button className="btn lg block" id="pa-analyze-btn" type="button" disabled={!file} onClick={() => run(true)}>
-          <Sparkle s={16} /> Analisar projeto com IA
+          <Sparkle s={16} /> Analisar projeto com GPT
         </button>
         <button className="pa-skip" id="pa-skip-btn" type="button" onClick={() => run(false)}>
           Ainda não tenho o projeto · gerar checklist pelos dados da obra
         </button>
 
-        {!GEMINI_KEY && (
+        {!OPENAI_KEY && (
           <p className="pa-note">
-            Modo demonstração: defina <code>VITE_GEMINI_API_KEY</code> em <code>apps/web/.env.local</code> para a IA ler o PDF de verdade. Sem a chave, o checklist é estimado pelos dados da obra.
+            Modo demonstração: defina <code>VITE_OPENAI_API_KEY</code> em <code>apps/web/.env.local</code> para o GPT analisar o projeto de verdade. Sem a chave, o checklist é estimado pelos dados da obra.
           </p>
         )}
 
@@ -291,7 +298,7 @@ export function ProjectAnalyzer({
             <p className="meta">{analysis.fileName ? <><Ico k="doc" s={13} /> {analysis.fileName}{analysis.fileSize ? ` · ${analysis.fileSize}` : ''}</> : 'Estimado pelos dados da obra'}</p>
           </div>
           <span className={`pa-src ${analysis.source}`}>
-            <Sparkle s={12} /> {analysis.source === 'gemini' ? `Gemini · ${analysis.model?.replace('gemini-', '')}` : 'Análise simulada'}
+            <Sparkle s={12} /> {analysis.source === 'gpt' ? `GPT · ${analysis.model?.replace('gpt-', '') || '4o'}` : analysis.source === 'gemini' ? `Gemini · ${analysis.model?.replace('gemini-', '')}` : 'Análise simulada'}
           </span>
         </div>
         <div className="pa-kpis">
@@ -337,10 +344,10 @@ export function ProjectAnalyzer({
           Avaliamos fornecedores cruzando <strong>logística (distância até a obra)</strong>, <strong>reputação de avaliações</strong> e <strong>custo-benefício</strong>. As sugestões são apenas um guia consultivo — você é livre para selecionar ou trocar qualquer empresa antes de enviar.
         </p>
         <div className="pa-consultancy-tags">
-          <span>📍 <b>Logística:</b> Menor frete e visita ágil</span>
-          <span>💎 <b>Custo-benefício:</b> Eficiência de preço</span>
-          <span>🏆 <b>Reputação:</b> Histórico verificado</span>
-          <span>⚡ <b>Qualidade:</b> Especialidade técnica</span>
+          <span><Ico k="pin" s={12} /> <b>Logística:</b> Menor frete e visita ágil</span>
+          <span><Ico k="shield" s={12} /> <b>Custo-benefício:</b> Eficiência de preço</span>
+          <span><Ico k="trophy" s={12} /> <b>Reputação:</b> Histórico verificado</span>
+          <span><Ico k="sparkles" s={12} /> <b>Qualidade:</b> Especialidade técnica</span>
         </div>
       </div>
 
@@ -412,7 +419,7 @@ export function ProjectAnalyzer({
                                     </span>
                                   )}
                                 </span>
-                                <small>★ {x ? rate(x.r) : '—'} ({x?.a || 0} avaliações) · {x?.c || ''} {cItem ? `· ~${cItem.distanceKm} km da obra` : ''}</small>
+                                <small style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Ico k="star" s={11} /> {x ? rate(x.r) : '—'} ({x?.a || 0} avaliações) · {x?.c || ''} {cItem ? `· ~${cItem.distanceKm} km da obra` : ''}</small>
                               </span>
                               <span className="pa-sup-chk">{on ? <Ico k="check" s={11} sw={3} /> : null}</span>
                             </button>
@@ -422,7 +429,7 @@ export function ProjectAnalyzer({
                           </div>
                           {cItem?.reason && (
                             <div className="pa-consultancy-reason">
-                              <span className="pa-bulb-ico">💡</span>
+                              <span className="pa-bulb-ico"><Ico k="bulb" s={14} /></span>
                               <span>{cItem.reason}</span>
                             </div>
                           )}

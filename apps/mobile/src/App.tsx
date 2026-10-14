@@ -4315,7 +4315,7 @@ function ProjectAnalyzerModal({
                   <Text style={st.eyebrow}>Resumo do projeto</Text>
                   <View style={[st.pill, { backgroundColor: C.accentSubtle }]}>
                     <Text style={{ fontSize: 10, fontWeight: '700', color: C.accent }}>
-                      {analysis.source === 'gemini' ? 'Gemini IA' : 'Estimativa inteligente'}
+                      {analysis.source === 'gpt' ? 'GPT-4o IA' : analysis.source === 'gemini' ? 'Gemini IA' : 'Estimativa inteligente'}
                     </Text>
                   </View>
                 </View>

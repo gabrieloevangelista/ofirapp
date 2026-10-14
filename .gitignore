@@ -3,3 +3,17 @@ dist
 .expo
 *.log
 .vercel
+
+# Environment variables & secrets (CRÍTICO: nunca versionar chaves de API)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+*.local
+
