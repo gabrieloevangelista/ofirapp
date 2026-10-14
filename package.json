@@ -1,0 +1,10 @@
+{
+  "name": "ofirapp",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @ofirapp/web dev",
+    "web": "pnpm --filter @ofirapp/web dev",
+    "build:web": "pnpm --filter @ofirapp/web build",
+    "mobile": "pnpm --filter @ofirapp/mobile start"
+  }
+}

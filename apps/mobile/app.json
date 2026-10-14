@@ -1,0 +1,14 @@
+{
+  "expo": {
+    "name": "OFIR",
+    "slug": "ofir",
+    "scheme": "ofir",
+    "description": "OFIR - Plataforma de Construção",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f6f5f2",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "br.com.ofir.app" },
+    "android": { "package": "br.com.ofir.app" }
+  }
+}
