@@ -95,7 +95,6 @@ export const SYSTEMS: System[] = [
   { k:'wood', n:'Wood frame', d:'Estrutura de madeira tratada de reflorestamento com placas OSB.', t:['Montagem a seco','Processo industrializado'], c:1.05, p:.50, f:94, m:'m6' },
   { k:'alvenaria', n:'Alvenaria convencional', d:'Tijolo ou bloco cerâmico com estrutura de concreto armado.', t:['Mão de obra fácil de achar','Reformas simples'], c:1, p:1, f:1240, m:'m1' },
   { k:'bloco', n:'Alvenaria estrutural', d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.', t:['Menos concreto','Ideal para repetição'], c:.94, p:.75, f:420, m:'m4' },
-  { k:'concretopvc', n:'Concreto PVC', d:'Fôrmas de PVC preenchidas com concreto, que ficam como acabamento.', t:['Parede já acabada','Industrializado rápido'], c:1.02, p:.55, f:58, m:'m8' },
   { k:'premoldado', n:'Pré-moldado', d:'Peças de concreto fabricadas fora e montadas na obra com guindaste.', t:['Galpões e grandes vãos','Montagem industrializada rápida'], c:.97, p:.55, f:136, m:'m5' },
 ];
 

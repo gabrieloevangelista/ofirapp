@@ -138,7 +138,6 @@ const SYSTEM_IMAGES: Record<string, string> = {
   wood: '/systems/wood.jpg',
   alvenaria: '/systems/alvenaria.jpg',
   bloco: '/systems/bloco.jpg',
-  concretopvc: '/systems/concretopvc.jpg',
   premoldado: '/systems/premoldado.jpg',
 };
 
