@@ -132,6 +132,16 @@ function WebQuoteCountdown({ conv }: { conv: Conversation }) {
   );
 }
 
+const SYSTEM_IMAGES: Record<string, string> = {
+  eps: '/systems/eps.jpg',
+  steel: '/systems/steel.jpg',
+  wood: '/systems/wood.jpg',
+  alvenaria: '/systems/alvenaria.jpg',
+  bloco: '/systems/bloco.jpg',
+  concretopvc: '/systems/concretopvc.jpg',
+  premoldado: '/systems/premoldado.jpg',
+};
+
 export default function App() {
   const {
     user, signOut, openAuth, authOpen, authView, closeAuth, signIn, requireAuth, updateUser,
@@ -1066,19 +1076,26 @@ export default function App() {
           </div>
           <div className="rail-wrap">
             <div className="rail" id="rail" ref={railRef}>
-              {SYSTEMS.map(s => (
-                <a key={s.k} href="#fornecedores" onClick={e => { e.preventDefault(); goToStage('estrutura', s.k); }}>
-                  <div className={`media ${s.m}`}>
-                    <div className="inner"><Svg k="estrutura" s={56} /></div>
-                    <span className="badge">{s.f} fornecedores</span>
-                  </div>
-                  <h3>{s.n}</h3>
-                  <p>{s.d}</p>
-                  <div className="chips">
-                    {s.t.map(t => <span key={t} className="chip">{t}</span>)}
-                  </div>
-                </a>
-              ))}
+              {SYSTEMS.map(s => {
+                const bgArt = SYSTEM_IMAGES[s.k];
+                return (
+                  <a key={s.k} href="#fornecedores" onClick={e => { e.preventDefault(); goToStage('estrutura', s.k); }}>
+                    <div className={`media ${s.m} ${bgArt ? 'has-art' : ''}`}>
+                      {bgArt ? (
+                        <img src={bgArt} alt={s.n} className="media-art" loading="lazy" />
+                      ) : (
+                        <div className="inner"><Svg k="estrutura" s={56} /></div>
+                      )}
+                      <span className="badge">{s.f} fornecedores</span>
+                    </div>
+                    <h3>{s.n}</h3>
+                    <p>{s.d}</p>
+                    <div className="chips">
+                      {s.t.map(t => <span key={t} className="chip">{t}</span>)}
+                    </div>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </section>
