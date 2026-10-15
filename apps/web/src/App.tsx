@@ -9,6 +9,7 @@ import {
 } from '@ofirapp/core';
 import { CustomSelect } from './components/CustomSelect';
 import { ProjectAnalyzer } from './components/ProjectAnalyzer';
+import { SupplierPortal } from './components/SupplierPortal';
 import { BRAZIL_UFS, fetchCitiesByUf, TOP_CITIES_BY_UF } from './data/brazilLocations';
 
 
@@ -141,7 +142,7 @@ export default function App() {
     conversations, proposals, sent, sendMessage, addFile, acceptProposal, startQuote,
     quotes, requestQuotes, orders, checkout, lastCheckout, confirmOrder,
     cancelOrder, cancelQuote, deleteQuote,
-    toasts, toast,
+    toasts, toast, dismissToast,
     obra, updateObra, setStageStatus, advanceStage,
     notifications, addNotification, markNotificationAsRead, markAllNotificationsAsRead,
     removeNotification, clearAllNotifications
@@ -149,9 +150,100 @@ export default function App() {
 
   const { items, groups, totals, curAddress } = useOrc();
 
+  // Alternância de Perspectiva: Cliente (Obra) vs Fornecedor (Parceiros B2B)
+  const [currentPortal, setCurrentPortal] = useState<'client' | 'supplier'>(() => {
+    if (typeof window !== 'undefined') {
+      if (
+        window.location.hash === '#fornecedor' ||
+        window.location.search.includes('portal=supplier') ||
+        window.location.search.includes('portal=fornecedor')
+      ) {
+        return 'supplier';
+      }
+    }
+    return 'client';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === '#fornecedor') {
+        setCurrentPortal('supplier');
+      } else if (window.location.hash === '#cliente' || window.location.hash === '#obra') {
+        setCurrentPortal('client');
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [theme]);
+
+  // Google One Tap integration
+  const GOOGLE_CLIENT_ID: string | undefined = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
+
+  useEffect(() => {
+    if (user || !GOOGLE_CLIENT_ID) return;
+
+    const initGoogleOneTap = () => {
+      const g = (window as any).google?.accounts?.id;
+      if (!g) return;
+
+      try {
+        g.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: (response: any) => {
+            if (!response?.credential) return;
+            try {
+              const base64Url = response.credential.split('.')[1];
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+              const jsonPayload = decodeURIComponent(
+                atob(base64)
+                  .split('')
+                  .map((c: string) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                  .join('')
+              );
+              const payload = JSON.parse(jsonPayload);
+              const userName = payload.name || payload.given_name || 'Usuário Google';
+              const userEmail = payload.email || 'usuario@google.com';
+              signIn({
+                name: userName,
+                email: userEmail,
+                avatar: payload.picture,
+                role: 'owner'
+              });
+              toast('Conta conectada com sucesso', `Bem-vindo à OFIR, ${userName}!`);
+            } catch (err) {
+              console.error('Falha ao decodificar token do Google', err);
+            }
+          },
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+
+        g.prompt((notification: any) => {
+          if (notification?.isNotDisplayed?.()) {
+            console.log('Google One Tap não exibido:', notification.getNotDisplayedReason?.());
+          }
+        });
+      } catch (err) {
+        console.warn('Google One Tap error:', err);
+      }
+    };
+
+    if ((window as any).google?.accounts?.id) {
+      initGoogleOneTap();
+    } else {
+      const t = setInterval(() => {
+        if ((window as any).google?.accounts?.id) {
+          clearInterval(t);
+          initGoogleOneTap();
+        }
+      }, 500);
+      return () => clearInterval(t);
+    }
+  }, [user, GOOGLE_CLIENT_ID]);
 
   // Notifications state
   const notifBellRef = useRef<HTMLDivElement>(null);
@@ -589,6 +681,19 @@ export default function App() {
   // Address label display
   const addrLabel = curAddress ? `${curAddress.label} · ${curAddress.city}/${curAddress.uf}` : (filters.city || 'Informe o CEP');
 
+  if (currentPortal === 'supplier') {
+    return (
+      <SupplierPortal
+        onSwitchToClient={() => {
+          setCurrentPortal('client');
+          if (window.location.hash === '#fornecedor') {
+            window.location.hash = '';
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <>
       {/* ----------------- NAVBAR ----------------- */}
@@ -611,6 +716,9 @@ export default function App() {
           <a href="#simulador" onClick={() => setMobileTabsOpen(false)}>Simulador <span className="tag">Novo</span></a>
           <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); }}>Financiamento</a>
           <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); }}>Guia da obra</a>
+          <a href="#fornecedor" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); setCurrentPortal('supplier'); window.location.hash = 'fornecedor'; }}>
+            Área do Fornecedor <span className="tag" style={{ background: '#1d4ed8', color: '#fff', fontWeight: 700 }}>B2B</span>
+          </a>
           <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); setActiveScreen('config'); }}>Configurações</a>
         </nav>
 
@@ -776,11 +884,34 @@ export default function App() {
             <Svg k="search" s={16} />
           </button>
 
+          <button
+            type="button"
+            className="sup-portal-nav-btn hide-m"
+            onClick={() => {
+              setCurrentPortal('supplier');
+              window.location.hash = 'fornecedor';
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'rgba(29, 78, 216, 0.08)',
+              color: '#1d4ed8',
+              border: '1px solid rgba(29, 78, 216, 0.25)',
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 12.5,
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Acessar painel do fornecedor (RFQs, Propostas e Custódia)"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 21h18M6 21V10l6-6 6 6v11M9 15l2 2 4-4" /></svg>
+            Área do Fornecedor
+          </button>
+
           {!user ? (
-            <>
-              <button className="ghost hide-m" onClick={() => openAuth('signup')}>Sou fornecedor</button>
-              <button className="btn" onClick={() => openAuth('login')}>Entrar</button>
-            </>
+            <button className="btn" onClick={() => openAuth('login')}>Entrar</button>
           ) : (
             <div className="user" style={{ position: 'relative' }}>
               <button className="avatar-btn" aria-label="Minha conta" onClick={() => setMenuOpen(!menuOpen)}>
@@ -789,6 +920,18 @@ export default function App() {
               {menuOpen && (
                 <div className="umenu" role="menu" style={{ display: 'block' }}>
                   <div className="who"><b>{user.name}</b><span>{user.email}</span></div>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setCurrentPortal('supplier');
+                      window.location.hash = 'fornecedor';
+                    }}
+                    style={{ color: '#1d4ed8', fontWeight: 700 }}
+                  >
+                    <Svg k="building" s={16} color="#1d4ed8" /> Portal do Fornecedor
+                    <span className="umenu-badge" style={{ background: '#1d4ed8', color: '#fff' }}>B2B</span>
+                  </button>
                   <button role="menuitem" onClick={() => { setMenuOpen(false); setActiveScreen('notificacoes'); }}>
                     <Svg k="bell" s={16} /> Notificações
                     {unreadCount > 0 && <span className="umenu-badge">{unreadCount}</span>}
@@ -1825,7 +1968,17 @@ export default function App() {
                             </div>
                             {prop.status === 'open' ? (
                               <div className="prop-acts">
-                                <button className="ghost" type="button">Pedir ajuste</button>
+                                <button
+                                  className="ghost"
+                                  type="button"
+                                  onClick={() => {
+                                    setChatInput('Gostaria de negociar os valores e prazos desta proposta.');
+                                    const el = document.getElementById('composer-in');
+                                    if (el) el.focus();
+                                  }}
+                                >
+                                  Negociar
+                                </button>
                                 <button className="btn" type="button" onClick={() => acceptProposal(prop.id)}>Aceitar e pagar</button>
                               </div>
                             ) : (
@@ -3482,11 +3635,21 @@ export default function App() {
       )}
 
       {/* ----------------- TOASTS ----------------- */}
-      <div className="toasts">
+      <div className="toasts" role="region" aria-label="Notificações do sistema">
         {toasts.map(t => (
           <div key={t.id} className="toast">
-            <b>{t.title}</b>
-            {t.text && <span>{t.text}</span>}
+            <div style={{ flex: 1, minWidth: 0, paddingRight: 16 }}>
+              <b>{t.title}</b>
+              {t.text && <span>{t.text}</span>}
+            </div>
+            <button
+              type="button"
+              className="x"
+              onClick={() => dismissToast(t.id)}
+              aria-label="Fechar notificação"
+            >
+              <Svg k="x" s={14} />
+            </button>
           </div>
         ))}
       </div>

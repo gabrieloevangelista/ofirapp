@@ -3672,8 +3672,8 @@ function ChatModal({
                       <Btn
                         small
                         ghost
-                        label="Pedir ajuste"
-                        onPress={() => setInputText('Poderia ajustar o cronograma e os valores das etapas?')}
+                        label="Negociar"
+                        onPress={() => setInputText('Gostaria de negociar os valores e prazos desta proposta.')}
                         style={{ flex: 1 }}
                       />
                       <Btn

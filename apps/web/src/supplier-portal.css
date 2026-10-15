@@ -1,0 +1,414 @@
+/* ==========================================================================
+   OFIR PARCEIROS - THEME OVERRIDES (B2B DESIGN SYSTEM)
+   Injeta a paleta azul safira/cobalto B2B nas variáveis canônicas da OFIR,
+   garantindo 100% de coerência visual, tipográfica e geométrica com o cliente.
+   ========================================================================== */
+
+.supplier-portal-theme {
+  --accent: #1e3a8a;
+  --accent-2: #172554;
+  --accent-ink: #ffffff;
+  --portal-badge-bg: rgba(30, 58, 138, 0.1);
+  --portal-badge-color: #1e3a8a;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+}
+
+html.dark .supplier-portal-theme {
+  --accent: #3b82f6;
+  --accent-2: #1d4ed8;
+  --accent-ink: #ffffff;
+  --portal-badge-bg: rgba(59, 130, 246, 0.18);
+  --portal-badge-color: #93c5fd;
+}
+
+/* Prevenção rigorosa de scroll vertical nas abas e permissão de popovers no header */
+.supplier-portal-theme .nav {
+  overflow: visible !important;
+}
+
+.supplier-portal-theme .actions {
+  overflow: visible !important;
+}
+
+.supplier-portal-theme .tabs {
+  overflow-x: auto;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+}
+
+.supplier-portal-theme .tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.supplier-portal-theme .notif-bell-wrap {
+  position: relative;
+  z-index: 101;
+}
+
+.supplier-portal-theme .notif-popover {
+  z-index: 1000 !important;
+}
+
+/* Menu Dropdown da Empresa Fornecedora (B2B .umenu) */
+.supplier-portal-theme .supplier-umenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 290px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 6px;
+  animation: popoverDrop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: top right;
+  z-index: 1000 !important;
+}
+
+html.dark .supplier-portal-theme .supplier-umenu {
+  background: #14171a;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.supplier-portal-theme .supplier-umenu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-weight: 500;
+  font-size: 13px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.supplier-portal-theme .supplier-umenu button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.supplier-portal-theme .supplier-umenu hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 0;
+}
+
+/* Badge de modo B2B na navbar */
+.supplier-portal-theme .b2b-indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--portal-badge-bg);
+  color: var(--portal-badge-color);
+  border: 1px solid rgba(30, 58, 138, 0.2);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+html.dark .supplier-portal-theme .b2b-indicator-pill {
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Seletor de empresa do fornecedor na topbar */
+.supplier-portal-theme .sup-select-chip {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.supplier-portal-theme .sup-select-chip select {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+/* Construtor interativo de proposta comercial no padrão .prop da OFIR */
+.prop-builder-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+}
+
+.prop-builder-card .rows input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.prop-builder-card .rows input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.prop-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.prop-del-stage-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  transition: all 0.15s ease;
+}
+
+.prop-del-stage-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Chat integrado do Fornecedor no padrão OFIR */
+.supplier-chat-container {
+  display: grid;
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: var(--g);
+  height: 660px;
+  align-items: stretch;
+}
+
+.supplier-chat-sidebar {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.supplier-chat-main {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.supplier-conv-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.supplier-conv-row:hover {
+  background: var(--surface-2);
+}
+
+.supplier-conv-row.active {
+  background: var(--surface-3);
+}
+
+@media (max-width: 900px) {
+  .supplier-chat-container {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+}
+
+/* Modais de ação rápida (Adicionar Item, Editar Proposta, Excluir) */
+.supplier-modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.supplier-modal-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  animation: scaleUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Sub-abas pill de Propostas */
+.supplier-subtabs {
+  display: inline-flex;
+  gap: 4px;
+  background: var(--surface-2);
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+
+.supplier-subtabs button {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.supplier-subtabs button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Grid de Formas de Pagamento */
+.pay-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 680px) {
+  .pay-method-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pay-method-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.pay-method-card:hover {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.pay-method-card.active {
+  border-color: var(--accent);
+  background: var(--portal-badge-bg);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Tabela de Itens com inputs estilizados */
+.prop-items-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+}
+
+.prop-items-table th {
+  padding: 8px 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.prop-items-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.prop-items-table input,
+.prop-items-table select {
+  height: 34px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  width: 100%;
+}
+
+.prop-items-table input:focus,
+.prop-items-table select:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+/* Cards de Histórico de Proposta */
+.proposal-history-card {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  padding: 18px 20px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.proposal-history-card:hover {
+  border-color: var(--line-3, #94a3b8);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}

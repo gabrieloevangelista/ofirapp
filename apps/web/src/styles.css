@@ -109,10 +109,10 @@ svg{flex:none}
 .sub{color:var(--muted);margin-top:8px;max-width:560px}
 
 /* nav */
-.nav{position:sticky;top:0;z-index:50;height:60px;display:flex;align-items:center;gap:16px;padding:0 var(--g);background:rgba(10,10,11,.85);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line)}
+.nav{position:sticky;top:0;z-index:50;height:60px;display:flex;align-items:center;gap:16px;padding:0 var(--g);background:rgba(10,10,11,.85);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line);overflow:visible}
 .logo{flex:none;display:flex;align-items:center;gap:9px;font:900 18px Archivo;font-stretch:85%;text-transform:uppercase;letter-spacing:.01em}
 .logo i{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center}
-.tabs{flex:1;min-width:0;display:flex;align-items:center;gap:2px;overflow-x:auto;scrollbar-width:none;mask-image:linear-gradient(90deg,#000 92%,transparent)}
+.tabs{flex:1;min-width:0;display:flex;align-items:center;gap:2px;overflow-x:auto;overflow-y:hidden !important;scrollbar-width:none;mask-image:linear-gradient(90deg,#000 92%,transparent)}
 .tabs::-webkit-scrollbar{display:none}
 .tabs a{position:relative;flex:none;display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border-radius:8px;color:var(--text-2);font-weight:500;white-space:nowrap;transition:color .15s,background .15s}
 .tabs a:hover{color:var(--text);background:var(--surface)}
@@ -932,13 +932,14 @@ footer{margin-top:96px;border-top:1px solid var(--line);padding:48px var(--g) 12
 .foot a.logo{display:flex;color:var(--text);padding:0}
 
 /* toast */
-.toast{position:fixed;right:16px;bottom:16px;z-index:97;width:360px;padding:14px;border-radius:14px;background:#151617;border:1px solid var(--line-2);box-shadow:0 20px 50px rgba(0,0,0,.55);display:flex;gap:12px;align-items:flex-start;animation:up .35s cubic-bezier(.2,.7,.2,1)}
-@keyframes up{from{opacity:0;transform:translateY(10px)}}
+.toasts{position:fixed;top:76px;right:20px;z-index:999;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:calc(100vw - 40px)}
+.toast{pointer-events:auto;position:relative;width:380px;max-width:100%;padding:14px 18px;border-radius:14px;background:#151617;border:1px solid var(--line-2);box-shadow:0 16px 36px rgba(0,0,0,.45);display:flex;gap:12px;align-items:flex-start;animation:toastDown .3s cubic-bezier(.16,1,.3,1)}
+@keyframes toastDown{from{opacity:0;transform:translateY(-12px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
 .toast .ico{flex:none}
 .toast b{display:block;font-weight:600}
-.toast span{color:var(--muted);font-size:13px}
+.toast span{color:var(--muted);font-size:13px;line-height:1.4}
 .toast .acts{display:flex;gap:8px;margin-top:10px}
-.toast .x{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:6px;color:var(--muted);display:grid;place-items:center}
+.toast .x{position:absolute;top:10px;right:10px;width:24px;height:24px;border-radius:6px;color:var(--muted);display:grid;place-items:center;background:transparent;border:0;cursor:pointer;padding:0}
 .toast .x:hover{background:var(--surface-3);color:var(--text)}
 
 
@@ -1026,7 +1027,8 @@ footer{margin-top:96px;border-top:1px solid var(--line);padding:48px var(--g) 12
   .sup .badge{display:none}
   .sec-head{flex-direction:column;align-items:flex-start}
   .foot{grid-template-columns:1fr 1fr}
-  .toast{left:16px;width:auto}
+  .toasts{left:14px;right:14px;max-width:none}
+  .toast{width:100%}
 }
 
 /* ===== mobile como aplicativo ===== */
@@ -1082,8 +1084,9 @@ footer{margin-top:96px;border-top:1px solid var(--line);padding:48px var(--g) 12
   .sim-left .btn{display:none}
   .plans{display:flex;overflow-x:auto;margin:0 -16px;padding:0 16px;gap:12px;scrollbar-width:none}
   .plan{flex:0 0 72%}
-  .toast{left:12px;right:12px;width:auto;bottom:calc(76px + env(safe-area-inset-bottom))}
-  body.in-chat .toast{bottom:calc(76px + env(safe-area-inset-bottom))}
+  .toasts{top:68px;left:12px;right:12px;max-width:none}
+  .toast{width:100%;left:auto;right:auto;bottom:auto}
+  body.in-chat .toast{bottom:auto}
   .auth{padding:0;place-items:stretch}
   .auth-card{max-width:none;max-height:none;height:100%;border-radius:0;border:0;padding:8px 20px calc(24px + env(safe-area-inset-bottom));animation:sheetUp .28s cubic-bezier(.2,.7,.2,1)}
   .screen{bottom:calc(64px + env(safe-area-inset-bottom))}
@@ -1839,7 +1842,7 @@ html.dark .quick-chip:hover {
   border: 1px solid var(--line-2);
   border-radius: 16px;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16), 0 2px 8px rgba(0, 0, 0, 0.08);
-  z-index: 100;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;

@@ -42,8 +42,37 @@ export interface Conversation {
   createdAt?: number;
   deadlineAt?: number;
 }
+export interface ProposalItemDetail {
+  id?: string;
+  desc: string;
+  unit: string;
+  qty: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface ProposalPaymentStage {
+  id?: string;
+  name: string;
+  percent: number;
+  amount: number;
+  trigger?: string;
+}
+
 export interface Proposal {
-  id: string; title: string; meta: string; rows: [string, number][]; status: 'open' | 'paid'; conv: string;
+  id: string;
+  title: string;
+  meta: string;
+  rows: [string, number][];
+  status: 'open' | 'paid' | 'cancelled' | 'negotiating';
+  conv: string;
+  deliveryDays?: number;
+  deliveryTerms?: string;
+  paymentMethod?: string;
+  paymentStages?: ProposalPaymentStage[];
+  itemsDetail?: ProposalItemDetail[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 export interface QuoteItem { sup: string; conv?: string }
 export interface Quote {
