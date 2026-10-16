@@ -41,18 +41,28 @@ export function filterSummary(f: Filters, n: number) {
 }
 
 // ---- simulador ----
-export const STANDARDS = ['Médio', 'Alto', 'Alto Luxo', 'High-End'];
-export const BASE_M2 = [2900, 4200, 6200, 8800]; // R$/m² por padrão, valores de protótipo
+export const STANDARDS = ['Médio', 'Médio-Alto', 'Alto Padrão', 'Alto Luxo', 'Ultra Luxo'];
+export const BASE_M2 = [2900, 4200, 6200, 8800, 13500]; // R$/m² por padrão, valores de referência
 export function simulate(area: number, sysKey: string, std: number) {
-  const s = SYSTEMS.find(x => x.k === sysKey)!;
+  const s = SYSTEMS.find(x => x.k === sysKey) || SYSTEMS[0];
   const stdIdx = Math.min(BASE_M2.length - 1, Math.max(0, std));
   const m2Base = BASE_M2[stdIdx] * s.c;
   const mid = area * m2Base;
-  const months = Math.max(2, Math.round((3 + area / 22) * s.p * (1 + stdIdx * 0.10)));
+  // Escalonamento de prazo: processo linear até 500m² e equipes ampliadas com gestão industrial para grandes obras
+  const effectiveMonths = area <= 500
+    ? (3 + area / 25)
+    : (3 + 500 / 25 + Math.pow(area - 500, 0.44) * 2.2);
+  const months = Math.max(2, Math.min(60, Math.round(effectiveMonths * s.p * (1 + stdIdx * 0.08))));
   const m2Min = Math.round(m2Base * 0.9);
   const m2Max = Math.round(m2Base * 1.12);
   const fmtM2 = (v: number) => 'R$ ' + v.toLocaleString('pt-BR');
-  const fmtFull = (v: number) => 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  const fmtFull = (v: number) => {
+    if (v >= 1e6) {
+      const mi = v / 1e6;
+      return 'R$ ' + mi.toLocaleString('pt-BR', { minimumFractionDigits: mi >= 10 ? 1 : 2, maximumFractionDigits: 2 }) + ' mi';
+    }
+    return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+  };
   return {
     cost: fmtFull(mid * 0.9) + ' a ' + fmtFull(mid * 1.12),
     time: months + ' meses',

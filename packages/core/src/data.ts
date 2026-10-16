@@ -94,7 +94,7 @@ export const SYSTEMS: System[] = [
   { k:'steel', n:'Steel frame', d:'Perfis de aço galvanizado com fechamento em placas, montagem a seco.', t:['Montagem a seco','50% menos tempo industrializado'], c:1.08, p:.50, f:312, m:'m3' },
   { k:'wood', n:'Wood frame', d:'Estrutura de madeira tratada de reflorestamento com placas OSB.', t:['Montagem a seco','Processo industrializado'], c:1.05, p:.50, f:94, m:'m6' },
   { k:'alvenaria', n:'Alvenaria convencional', d:'Tijolo ou bloco cerâmico com estrutura de concreto armado.', t:['Mão de obra fácil de achar','Reformas simples'], c:1, p:1, f:1240, m:'m1' },
-  { k:'bloco', n:'Alvenaria estrutural', d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.', t:['Menos concreto','Ideal para repetição'], c:.94, p:.75, f:420, m:'m4' },
+  { k:'bloco', n:'Bloco estrutural', d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.', t:['Menos concreto','Ideal para repetição'], c:.94, p:.75, f:420, m:'m4' },
   { k:'premoldado', n:'Pré-moldado', d:'Peças de concreto fabricadas fora e montadas na obra com guindaste.', t:['Galpões e grandes vãos','Montagem industrializada rápida'], c:.97, p:.55, f:136, m:'m5' },
 ];
 
@@ -155,7 +155,7 @@ export const SUPPLIERS: Supplier[] = RAW.map((x, i) => ({
 export const PLANS: Plan[] = [
   { n:'Casa térrea 4 suítes', a:420, q:4, b:5, s:'Alvenaria ou EPS', rooms:[[0,0,40,30,'Estar e jantar'],[40,0,30,30,'Cozinha'],[0,30,25,30,'Suíte'],[25,30,20,30,'Lavabo'],[45,30,25,30,'Suíte master']] },
   { n:'Casa de campo 3 suítes', a:290, q:3, b:4, s:'Todos os sistemas', rooms:[[0,0,45,28,'Estar e varanda'],[45,0,25,28,'Cozinha'],[0,28,24,32,'Suíte master'],[24,28,14,16,'Banho'],[24,44,14,16,'Banho'],[38,28,16,32,'Suíte'],[54,28,16,32,'Suíte']] },
-  { n:'Sobrado contemporâneo', a:380, q:4, b:5, s:'Alvenaria estrutural', rooms:[[0,0,35,60,'Térreo social'],[35,0,35,25,'Suíte'],[35,25,20,15,'Banho'],[55,25,15,15,'Escada'],[35,40,35,20,'Suíte master']] },
+  { n:'Sobrado contemporâneo', a:380, q:4, b:5, s:'Bloco estrutural', rooms:[[0,0,35,60,'Térreo social'],[35,0,35,25,'Suíte'],[35,25,20,15,'Banho'],[55,25,15,15,'Escada'],[35,40,35,20,'Suíte master']] },
   { n:'Kitnets para renda, 4 un.', a:120, q:4, b:4, s:'EPS ou steel frame', rooms:[[0,0,35,30,'Kit 1'],[35,0,35,30,'Kit 2'],[0,30,35,30,'Kit 3'],[35,30,35,30,'Kit 4']] },
 ];
 

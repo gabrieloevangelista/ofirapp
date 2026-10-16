@@ -141,6 +141,64 @@ const SYSTEM_IMAGES: Record<string, string> = {
   premoldado: '/systems/premoldado.jpg',
 };
 
+interface StandardInfo {
+  idx: number;
+  name: string;
+  tag: string;
+  label: string;
+  img: string;
+  desc: string;
+  m2Ref: string;
+}
+
+const STANDARD_INFO: StandardInfo[] = [
+  {
+    idx: 0,
+    name: 'Médio',
+    tag: 'Padrão 1',
+    label: 'Padrão Médio',
+    img: '/type/1.jpg',
+    desc: 'Construção contemporânea com acabamentos essenciais de excelente qualidade e ótimo custo-benefício.',
+    m2Ref: 'a partir de R$ 2.900/m²',
+  },
+  {
+    idx: 1,
+    name: 'Médio-Alto',
+    tag: 'Padrão 2',
+    label: 'Padrão Médio-Alto',
+    img: '/type/2.jpg',
+    desc: 'Fachada contemporânea com detalhes em pedra e ripados, porcelanatos nobres e ampla integração.',
+    m2Ref: 'a partir de R$ 4.200/m²',
+  },
+  {
+    idx: 2,
+    name: 'Alto Padrão',
+    tag: 'Padrão 3',
+    label: 'Alto Padrão',
+    img: '/type/3.jpg',
+    desc: 'Grandes vãos envidraçados, mármores nobres, área gourmet completa e piscina privativa.',
+    m2Ref: 'a partir de R$ 6.200/m²',
+  },
+  {
+    idx: 3,
+    name: 'Alto Luxo',
+    tag: 'Padrão 4',
+    label: 'Alto Luxo',
+    img: '/type/4.jpg',
+    desc: 'Arquitetura autoral inovadora, balanços estruturais, piscina com borda infinita e acabamento refinado.',
+    m2Ref: 'a partir de R$ 8.800/m²',
+  },
+  {
+    idx: 4,
+    name: 'Ultra Luxo',
+    tag: 'Padrão 5',
+    label: 'Ultra Luxo',
+    img: '/type/5.jpg',
+    desc: 'Propriedade monumental exclusiva, jardins clássicos, fontes ornamentais e altíssimo padrão construtivo.',
+    m2Ref: 'a partir de R$ 13.500/m²',
+  },
+];
+
 export default function App() {
   const {
     user, signOut, openAuth, authOpen, authView, closeAuth, signIn, requireAuth, updateUser,
@@ -461,8 +519,10 @@ export default function App() {
 
   // Simulator
   const [simArea, setSimArea] = useState(420);
+  const [simAreaInput, setSimAreaInput] = useState('420');
   const [simSys, setSimSys] = useState('alvenaria');
   const [simStd, setSimStd] = useState(1);
+  const [hoveredStd, setHoveredStd] = useState<number | null>(null);
   const simResult = simulate(simArea, simSys, simStd);
 
   // Address edit state & CEP lookup
@@ -514,8 +574,12 @@ export default function App() {
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setFilters({ city: heroCity.trim(), stage: 'all', sys: 'all', seg: 'svc' });
-    const a = parseInt(heroArea);
-    if (a >= 80 && a <= 1000) setSimArea(a);
+    const a = parseInt(heroArea.replace(/\D/g, ''), 10);
+    if (!isNaN(a) && a >= 80 && a <= 20000) {
+      setSimArea(a);
+      setSimAreaInput(String(a));
+      if (a > 5000 && simStd < 3) setSimStd(3);
+    }
     document.getElementById('fornecedores')?.scrollIntoView({ behavior: 'smooth' });
   };
 
@@ -1460,8 +1524,79 @@ export default function App() {
           </div>
           <div className="sim-form">
             <div className="ctrl">
-              <label htmlFor="s-area">Área construída <b id="s-area-v">{simArea} m²</b></label>
-              <input type="range" id="s-area" min="80" max="1000" step="10" value={simArea} onChange={e => setSimArea(+e.target.value)} />
+              {(() => {
+                const simMaxArea = simStd >= 3 ? 20000 : simStd === 2 ? 5000 : 2000;
+                const simStepArea = simArea >= 5000 ? 250 : simArea >= 1500 ? 100 : 10;
+                const simAreaChips = simStd >= 3
+                  ? [420, 1000, 3500, 8000, 15000, 20000]
+                  : simStd === 2
+                  ? [250, 420, 800, 1500, 3000, 5000]
+                  : [80, 180, 300, 420, 750, 1500];
+                return (
+                  <>
+                    <div className="sim-area-row">
+                      <label htmlFor="s-area-input">Área construída</label>
+                      <div className="sim-area-manual-wrap" title="Clique para alterar a metragem manualmente">
+                        <input
+                          type="text"
+                          id="s-area-input"
+                          className="sim-area-manual-input"
+                          inputMode="numeric"
+                          value={simAreaInput}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/\D/g, '');
+                            setSimAreaInput(raw);
+                            const num = parseInt(raw, 10);
+                            if (!isNaN(num)) {
+                              const clamped = Math.min(20000, Math.max(1, num));
+                              setSimArea(clamped);
+                              if (clamped > 5000 && simStd < 3) {
+                                setSimStd(3);
+                              }
+                            }
+                          }}
+                          onBlur={() => {
+                            const num = parseInt(simAreaInput, 10);
+                            const finalVal = isNaN(num) || num < 80 ? 80 : Math.min(20000, num);
+                            setSimArea(finalVal);
+                            setSimAreaInput(String(finalVal));
+                          }}
+                          placeholder="420"
+                        />
+                        <span className="sim-area-manual-unit">m²</span>
+                      </div>
+                    </div>
+                    <input
+                      type="range"
+                      id="s-area"
+                      min="80"
+                      max={simMaxArea}
+                      step={simStepArea}
+                      value={simArea}
+                      onChange={e => {
+                        const v = +e.target.value;
+                        setSimArea(v);
+                        setSimAreaInput(String(v));
+                      }}
+                    />
+                    <div className="sim-area-chips">
+                      {simAreaChips.map(val => (
+                        <button
+                          key={val}
+                          type="button"
+                          className={`sim-chip ${simArea === val ? 'on' : ''}`}
+                          onClick={() => {
+                            setSimArea(val);
+                            setSimAreaInput(String(val));
+                          }}
+                        >
+                          {val.toLocaleString('pt-BR')} m²
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <div className="ctrl">
               <label htmlFor="s-sys">Sistema construtivo</label>
@@ -1475,14 +1610,59 @@ export default function App() {
                 searchable={false}
               />
             </div>
-            <div className="ctrl">
-              <label>Padrão de acabamento</label>
-              <div className="seg" id="s-std">
-                {STANDARDS.map((name, idx) => (
-                  <button key={name} type="button" className={simStd === idx ? 'on' : ''} onClick={() => setSimStd(idx)}>
-                    {name}
-                  </button>
-                ))}
+            <div className="ctrl std-ctrl">
+              <div className="std-ctrl-head">
+                <label>Padrão de acabamento</label>
+                <span className="std-hint">
+                  <Svg k="info" s={13} /> Passe o cursor para prévia visual
+                </span>
+              </div>
+              <div className="seg" id="s-std" onMouseLeave={() => setHoveredStd(null)}>
+                {STANDARDS.map((name, idx) => {
+                  const info = STANDARD_INFO[idx] || STANDARD_INFO[0];
+                  const isHovered = hoveredStd === idx;
+                  return (
+                    <div
+                      key={name}
+                      className="seg-btn-wrap"
+                      onMouseEnter={() => setHoveredStd(idx)}
+                    >
+                      <button
+                        type="button"
+                        className={simStd === idx ? 'on' : ''}
+                        onClick={() => {
+                          setSimStd(idx);
+                          const maxForIdx = idx >= 3 ? 20000 : idx === 2 ? 5000 : 2000;
+                          if (simArea > maxForIdx) {
+                            setSimArea(maxForIdx);
+                            setSimAreaInput(String(maxForIdx));
+                          }
+                        }}
+                        onFocus={() => setHoveredStd(idx)}
+                        onBlur={() => setHoveredStd(null)}
+                      >
+                        {name}
+                      </button>
+
+                      {isHovered && (
+                        <div className={`std-tooltip std-tooltip-align-${idx}`} role="tooltip">
+                          <div className="std-tooltip-img-wrap">
+                            <img src={info.img} alt={info.label} className="std-tooltip-img" />
+                            <span className="std-tooltip-badge">{info.tag}</span>
+                          </div>
+                          <div className="std-tooltip-body">
+                            <div className="std-tooltip-header">
+                              <span className="std-tooltip-title">{info.label}</span>
+                              <span className="std-tooltip-m2">{info.m2Ref}</span>
+                            </div>
+                            <p className="std-tooltip-desc">{info.desc}</p>
+                          </div>
+                          <div className="std-tooltip-arrow" />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
             <div className="result">
