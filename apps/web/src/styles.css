@@ -6153,8 +6153,10 @@ footer {
     margin-right: auto
   }
 
+  .hide-m,
+  .actions .hide-m,
   .actions .ghost.hide-m {
-    display: none
+    display: none !important;
   }
 
   .search {
@@ -6273,6 +6275,8 @@ footer {
   .tabs,
   .menu-btn,
   footer,
+  .hide-m,
+  .actions .hide-m,
   .actions .ghost.hide-m {
     display: none !important
   }

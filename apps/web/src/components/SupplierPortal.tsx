@@ -1208,6 +1208,47 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         </div>
       </header>
 
+      {/* ----------------- SUBNAV RESPONSIVA (TABLETS E MOBILE) ----------------- */}
+      <nav className="supplier-subnav-bar" aria-label="Navegação do Fornecedor">
+        <button
+          type="button"
+          className={`subnav-pill ${activeTab === 'geral' ? 'active' : ''}`}
+          onClick={() => setActiveTab('geral')}
+        >
+          <Svg k="building" s={14} /> Painel da Empresa
+        </button>
+        <button
+          type="button"
+          className={`subnav-pill ${activeTab === 'rfqs' ? 'active' : ''}`}
+          onClick={() => setActiveTab('rfqs')}
+        >
+          <Svg k="doc" s={14} /> Oportunidades & RFQs
+          <span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>2</span>
+        </button>
+        <button
+          type="button"
+          className={`subnav-pill ${activeTab === 'proposta' ? 'active' : ''}`}
+          onClick={() => setActiveTab('proposta')}
+        >
+          <Svg k="clip" s={14} /> Emissor de Proposta
+        </button>
+        <button
+          type="button"
+          className={`subnav-pill ${activeTab === 'chat' ? 'active' : ''}`}
+          onClick={() => setActiveTab('chat')}
+        >
+          <Svg k="msg" s={14} /> Mensagens
+          {supConvs.length > 0 && <span className="tag">{supConvs.length}</span>}
+        </button>
+        <button
+          type="button"
+          className={`subnav-pill ${activeTab === 'catalogo' ? 'active' : ''}`}
+          onClick={() => setActiveTab('catalogo')}
+        >
+          <Svg k="orc" s={14} /> Preços ({currentCatalogList.length})
+        </button>
+      </nav>
+
       {/* ----------------- SUB-HEADER B2B DE STATUS ----------------- */}
       <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--line)', padding: '10px var(--g)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -1241,7 +1282,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         {/* ==================== ABA 1: PAINEL DA EMPRESA ==================== */}
         {activeTab === 'geral' && (
           <div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 'var(--g)' }}>
+            <div className="sup-dashboard-grid">
               <div className="card" style={{ cursor: 'default' }}>
                 <div className="card-head">
                   <span className="eyebrow">CREDENCIADO OFIR · ENGENHARIA & FORNECIMENTO</span>
@@ -1532,7 +1573,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
 
             {/* SUB-ABA: EDITOR DE PROPOSTAS */}
             {propSubTab === 'editor' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+              <div className="prop-builder-grid">
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   {/* Bloco 1: Dados Gerais e Prazos */}
                   <div className="panel">
@@ -1567,7 +1608,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                       </div>
 
                       {/* Prazo de Entrega e Mobilização */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div className="prop-timing-grid">
                         <div className="inp">
                           <label>Prazo de Execução (Dias Úteis)</label>
                           <div style={{ position: 'relative' }}>
@@ -1576,9 +1617,9 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                               min={1}
                               value={deliveryDays}
                               onChange={e => setDeliveryDays(Math.max(1, Number(e.target.value)))}
-                              style={{ paddingRight: 60 }}
+                              style={{ paddingRight: 74 }}
                             />
-                            <span style={{ position: 'absolute', right: 12, top: 10, fontSize: 12, color: 'var(--muted)' }}>
+                            <span style={{ position: 'absolute', right: 10, top: 11, fontSize: 11.5, color: 'var(--muted)', pointerEvents: 'none' }}>
                               dias úteis
                             </span>
                           </div>
@@ -1592,9 +1633,9 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                               min={1}
                               value={deliveryStartDays}
                               onChange={e => setDeliveryStartDays(Math.max(1, Number(e.target.value)))}
-                              style={{ paddingRight: 60 }}
+                              style={{ paddingRight: 74 }}
                             />
-                            <span style={{ position: 'absolute', right: 12, top: 10, fontSize: 12, color: 'var(--muted)' }}>
+                            <span style={{ position: 'absolute', right: 10, top: 11, fontSize: 11.5, color: 'var(--muted)', pointerEvents: 'none' }}>
                               dias pós-depósito
                             </span>
                           </div>
@@ -1632,7 +1673,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                       </div>
                     </div>
 
-                    <div style={{ overflowX: 'auto', border: '1px solid var(--line)', borderRadius: 8 }}>
+                    <div className="prop-items-table-wrapper">
                       <table className="prop-items-table">
                         <thead>
                           <tr>
@@ -1823,7 +1864,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                 </div>
 
                 {/* Coluna da Direita: Prévia Oficial no padrão .prop da OFIR */}
-                <div style={{ position: 'sticky', top: 80 }}>
+                <div className="prop-preview-col">
                   <span className="eyebrow" style={{ display: 'block', marginBottom: 8 }}>
                     PRÉVIA DO QUE O CLIENTE VERÁ NO CHAT:
                   </span>
@@ -2160,8 +2201,8 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
             </div>
 
             {/* Tabela de Preços com Ações Reais */}
-            <div className="panel" style={{ padding: 0, overflow: 'hidden' }}>
-              <table className="ot items" style={{ width: '100%' }}>
+            <div className="panel" style={{ padding: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table className="ot items" style={{ width: '100%', minWidth: 640 }}>
                 <thead>
                   <tr>
                     <th>Item / Serviço de Engenharia</th>
@@ -2277,7 +2318,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              <div className="modal-tri-grid">
                 <div className="inp">
                   <label>Unidade *</label>
                   <select
@@ -2462,7 +2503,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
             </div>
 
             {/* Grid de Saldos em Custódia */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+            <div className="escrow-stats-grid">
               <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 12, border: '1px solid var(--line-2)' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', display: 'block' }}>Total sob Custódia</span>
                 <b style={{ fontSize: 19, color: 'var(--text)', fontFamily: 'ui-monospace, monospace', display: 'block', marginTop: 4 }}>
@@ -2721,7 +2762,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {/* Card de Status Principal */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div className="modal-duo-grid">
                 <div
                   onClick={() => setIsOnline(true)}
                   style={{
@@ -2781,7 +2822,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
               )}
 
               {/* Capacidade Simultânea de Obras */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="modal-duo-grid">
                 <div className="inp">
                   <label>Capacidade Simultânea de Obras</label>
                   <input
