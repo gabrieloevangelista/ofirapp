@@ -114,6 +114,8 @@ export function guessSystemKey(text: string, fallback: string): string {
   if (t.includes('eps') || t.includes('monolit')) return 'eps';
   if (t.includes('steel')) return 'steel';
   if (t.includes('wood')) return 'wood';
+  if (t.includes('metalic') || t.includes('metalica') || t.includes('estrutura metalica') || t.includes('aco')) return 'metalica';
+  if (t.includes('turnkey') || t.includes('chave na mao') || t.includes('acabada')) return 'acabada';
   if (t.includes('pvc')) return 'concretopvc';
   if (t.includes('pre-mold') || t.includes('premold') || t.includes('pre mold')) return 'premoldado';
   if (t.includes('estrutural')) return 'bloco';

@@ -90,11 +90,13 @@ export const STAGES: [string, string][] = [
 export const STAGE_COUNT: Record<string, number> = { terreno:48, fundacao:96, estrutura:388, cobertura:132, instalacoes:241, esquadrias:118, acabamento:305, projeto:214, paisagismo:67, posobra:74 };
 
 export const SYSTEMS: System[] = [
+  { k:'alvenaria', n:'Alvenaria convencional', d:'Tijolo ou bloco cerâmico com estrutura de concreto armado.', t:['Mão de obra fácil de achar','Reformas simples'], c:1, p:1, f:1240, m:'m1' },
+  { k:'bloco', n:'Alvenaria estrutural', d:'Blocos que funcionam como estrutura portante, dispensando vigas e pilares.', t:['Menos concreto','Ideal para repetição'], c:.94, p:.75, f:420, m:'m4' },
   { k:'eps', n:'Painel Monolítico (EPS)', d:'Painéis de isopor com malha de aço, revestidos com argamassa projetada.', t:['Mais procurado','Isolamento térmico','70% mais rápido'], c:.92, p:.30, f:480, m:'m9' },
   { k:'steel', n:'Steel frame', d:'Perfis de aço galvanizado com fechamento em placas, montagem a seco.', t:['Montagem a seco','50% menos tempo industrializado'], c:1.08, p:.50, f:312, m:'m3' },
   { k:'wood', n:'Wood frame', d:'Estrutura de madeira tratada de reflorestamento com placas OSB.', t:['Montagem a seco','Processo industrializado'], c:1.05, p:.50, f:94, m:'m6' },
-  { k:'alvenaria', n:'Alvenaria convencional', d:'Tijolo ou bloco cerâmico com estrutura de concreto armado.', t:['Mão de obra fácil de achar','Reformas simples'], c:1, p:1, f:1240, m:'m1' },
-  { k:'bloco', n:'Bloco estrutural', d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.', t:['Menos concreto','Ideal para repetição'], c:.94, p:.75, f:420, m:'m4' },
+  { k:'metalica', n:'Estrutura metálica', d:'Perfis de aço estrutural para grandes vãos, rapidez na montagem e precisão milimétrica.', t:['Grandes vãos','Rapidez na montagem','Alta precisão'], c:1.10, p:.45, f:215, m:'m3' },
+  { k:'acabada', n:'Casa acabada (Turnkey)', d:'Obra completa entregue pronta para morar com todos os sistemas integrados e finalizados.', t:['Chave na mão','Alto padrão','Solução completa'], c:1.20, p:.60, f:340, m:'m2' },
   { k:'premoldado', n:'Pré-moldado', d:'Peças de concreto fabricadas fora e montadas na obra com guindaste.', t:['Galpões e grandes vãos','Montagem industrializada rápida'], c:.97, p:.55, f:136, m:'m5' },
 ];
 
@@ -105,11 +107,13 @@ const RAW: Raw[] = [
   // 2. Fundação
   { n:'Base Forte Fundações', e:'fundacao', s:'all', c:'Campinas, SP', r:4.9, a:128, t:'2h', m:'m1' },
   { n:'Sólida Engenharia', e:'fundacao', s:'all', c:'Atibaia, SP', r:4.8, a:64, t:'3h', m:'m6' },
-  // 3. Vedação e Estrutura (Painel Monolítico EPS, Steel Frame, etc)
+  // 3. Vedação e Estrutura (Painel Monolítico EPS, Steel Frame, Estrutura Metálica, etc)
   { n:'Painel Monolítico EPS', e:'estrutura', s:'eps', c:'São Paulo, SP', r:4.9, a:198, t:'1h', m:'m9' },
   { n:'Aço Leve Construções', e:'estrutura', s:'steel', c:'Sorocaba, SP', r:4.7, a:143, t:'2h', m:'m3' },
+  { n:'Metálica Prime Estruturas', e:'estrutura', s:'metalica', c:'São Paulo, SP', r:4.9, a:135, t:'2h', m:'m3' },
   { n:'Madeira Certa Wood Frame', e:'estrutura', s:'wood', c:'Curitiba, PR', r:4.9, a:51, t:'5h', m:'m6' },
   { n:'Bloco Certo Construtora', e:'estrutura', s:'bloco', c:'Campinas, SP', r:4.7, a:110, t:'3h', m:'m4' },
+  { n:'Turnkey Engenharia & Obras', e:'estrutura', s:'acabada', c:'Campinas, SP', r:4.9, a:160, t:'1h', m:'m2' },
   { n:'Pré-Mold Galpões', e:'estrutura', s:'premoldado', c:'Ribeirão Preto, SP', r:4.6, a:76, t:'6h', m:'m5' },
   // 4. Cobertura e Telhado
   { n:'Telhados Serra Azul', e:'cobertura', s:'all', c:'Bragança Paulista, SP', r:4.8, a:92, t:'2h', m:'m5' },
@@ -142,7 +146,7 @@ export const REG: Record<string, string[]> = {
   rp: ['Ribeirão Preto','Sertãozinho','Jardinópolis'],
   cwb: ['Curitiba','São José dos Pinhais','Colombo','Pinhais'],
 };
-const ATENDE: Record<string, string[]> = {'Traço Arquitetura':['sp','camp'],'Terra Plana Terraplenagem':['camp','sp'],'Base Forte Fundações':['camp'],'Sólida Engenharia':['camp','sp'],'Painel Monolítico EPS':['sp','camp'],'Aço Leve Construções':['soro','sp','camp'],'Madeira Certa Wood Frame':['cwb'],'Pré-Mold Galpões':['rp','camp'],'Bloco Certo Construtora':['camp'],'Telhados Serra Azul':['camp'],'Hidrolar Instalações':['sp'],'Vidraçaria Horizonte':['sp'],'Revest Pisos e Acabamentos':['camp'],'Verde Vivo Paisagismo':['camp','sp'],'Madeireira Serra Verde':['camp','sp'],'Ferro e Aço Distribuidora':['camp','sp'],'Concremix Materiais':['camp','sp'],'Elétrica Total':['sp','camp'],'Hidro Center':['camp'],'Casa do Porcelanato':['camp','sp'],'Metais e Louças Prime':['sp','camp'],'Tintas Horizonte':['camp'],'Brilho Limpeza Pós-Obra':['camp','sp'],'Vistoria Certa Engenharia':['sp','camp']};
+const ATENDE: Record<string, string[]> = {'Traço Arquitetura':['sp','camp'],'Terra Plana Terraplenagem':['camp','sp'],'Base Forte Fundações':['camp'],'Sólida Engenharia':['camp','sp'],'Painel Monolítico EPS':['sp','camp'],'Aço Leve Construções':['soro','sp','camp'],'Metálica Prime Estruturas':['sp','camp'],'Madeira Certa Wood Frame':['cwb'],'Pré-Mold Galpões':['rp','camp'],'Bloco Certo Construtora':['camp'],'Turnkey Engenharia & Obras':['camp','sp'],'Telhados Serra Azul':['camp'],'Hidrolar Instalações':['sp'],'Vidraçaria Horizonte':['sp'],'Revest Pisos e Acabamentos':['camp'],'Verde Vivo Paisagismo':['camp','sp'],'Madeireira Serra Verde':['camp','sp'],'Ferro e Aço Distribuidora':['camp','sp'],'Concremix Materiais':['camp','sp'],'Elétrica Total':['sp','camp'],'Hidro Center':['camp'],'Casa do Porcelanato':['camp','sp'],'Metais e Louças Prime':['sp','camp'],'Tintas Horizonte':['camp'],'Brilho Limpeza Pós-Obra':['camp','sp'],'Vistoria Certa Engenharia':['sp','camp']};
 
 export const SUPPLIERS: Supplier[] = RAW.map((x, i) => ({
   ...x, i,

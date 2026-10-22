@@ -224,6 +224,8 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
   const [selectedSupName, setSelectedSupName] = useState<string>('Base Forte Fundações');
   const [activeTab, setActiveTab] = useState<'geral' | 'rfqs' | 'proposta' | 'chat' | 'catalogo'>('geral');
   const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
   // Sub-aba dentro da aba de propostas ('editor' ou 'history')
   const [propSubTab, setPropSubTab] = useState<'editor' | 'history'>('editor');
@@ -800,61 +802,208 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
   const activeConv = conversations.find(c => c.id === activeChatId) || supConvs[0];
 
   return (
-    <div className="supplier-portal-theme">
-      {/* ----------------- NAVBAR CANÔNICA DA OFIR (B2B) ----------------- */}
-      <header className="nav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <a className="logo" href="#" onClick={e => { e.preventDefault(); setActiveTab('geral'); }}>
+    <div className={`supplier-portal-theme supplier-app-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Overlay Escuro para Mobile quando Sidebar aberta */}
+      {mobileSidebarOpen && (
+        <div
+          className="supplier-mobile-scrim"
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-label="Fechar menu"
+        />
+      )}
+
+      {/* ----------------- SIDEBAR DO FORNECEDOR (EXPAND / COLLAPSE) ----------------- */}
+      <aside className={`supplier-sidebar ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        {/* Header da Sidebar */}
+        <div className="supplier-sidebar-header">
+          <a
+            className="supplier-sidebar-logo-wrap"
+            href="#"
+            onClick={e => { e.preventDefault(); setActiveTab('geral'); setMobileSidebarOpen(false); }}
+            title="OFIR Fornecedores"
+          >
             <LogoIcon />
-            OFIR
+            <span className="supplier-sidebar-logo-text">OFIR</span>
+            <span className="supplier-sidebar-badge">B2B</span>
           </a>
-          <span className="b2b-indicator-pill">
-            <Svg k="shield" s={13} color="var(--accent)" />
-            Fornecedor Credenciado
-          </span>
+
+          <button
+            type="button"
+            className="sidebar-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+            aria-label={sidebarCollapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {sidebarCollapsed ? (
+                <polyline points="9 18 15 12 9 6" />
+              ) : (
+                <polyline points="15 18 9 12 15 6" />
+              )}
+            </svg>
+          </button>
         </div>
 
-        {/* Abas com a mesma geometria e estados da tela do cliente */}
-        <nav className="tabs" id="tabs">
-          <a
-            href="#"
-            className={activeTab === 'geral' ? 'active' : ''}
-            onClick={e => { e.preventDefault(); setActiveTab('geral'); }}
+        {/* Navegação Principal */}
+        <nav className="supplier-sidebar-nav" aria-label="Navegação Lateral">
+          <div className="sidebar-nav-section-title">Menu Principal</div>
+
+          <button
+            type="button"
+            className={`sidebar-nav-btn ${activeTab === 'geral' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('geral'); setMobileSidebarOpen(false); }}
+            title="Painel Geral da Empresa"
           >
-            Painel da Empresa
-          </a>
-          <a
-            href="#"
-            className={activeTab === 'rfqs' ? 'active' : ''}
-            onClick={e => { e.preventDefault(); setActiveTab('rfqs'); }}
+            <span className="sidebar-nav-icon"><Svg k="home" s={18} /></span>
+            <span className="sidebar-nav-label">Painel da Empresa</span>
+          </button>
+
+          <button
+            type="button"
+            className={`sidebar-nav-btn ${activeTab === 'rfqs' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('rfqs'); setMobileSidebarOpen(false); }}
+            title="Oportunidades & RFQs Recebidos"
           >
-            Oportunidades & RFQs <span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>2 novas</span>
-          </a>
-          <a
-            href="#"
-            className={activeTab === 'proposta' ? 'active' : ''}
-            onClick={e => { e.preventDefault(); setActiveTab('proposta'); }}
+            <span className="sidebar-nav-icon"><Svg k="doc" s={18} /></span>
+            <span className="sidebar-nav-label">Oportunidades & RFQs</span>
+            <span className="sidebar-nav-badge">2</span>
+          </button>
+
+          <button
+            type="button"
+            className={`sidebar-nav-btn ${activeTab === 'proposta' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('proposta'); setMobileSidebarOpen(false); }}
+            title="Emissor de Proposta Técnica"
           >
-            Emissor de Proposta
-          </a>
-          <a
-            href="#"
-            className={activeTab === 'chat' ? 'active' : ''}
-            onClick={e => { e.preventDefault(); setActiveTab('chat'); }}
+            <span className="sidebar-nav-icon"><Svg k="clip" s={18} /></span>
+            <span className="sidebar-nav-label">Emissor de Proposta</span>
+          </button>
+
+          <button
+            type="button"
+            className={`sidebar-nav-btn ${activeTab === 'chat' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('chat'); setMobileSidebarOpen(false); }}
+            title="Negociações & Mensagens"
           >
-            Negociações & Mensagens {supConvs.length > 0 && <span className="tag">{supConvs.length}</span>}
-          </a>
-          <a
-            href="#"
-            className={activeTab === 'catalogo' ? 'active' : ''}
-            onClick={e => { e.preventDefault(); setActiveTab('catalogo'); }}
+            <span className="sidebar-nav-icon"><Svg k="msg" s={18} /></span>
+            <span className="sidebar-nav-label">Negociações</span>
+            {supConvs.length > 0 && <span className="sidebar-nav-badge">{supConvs.length}</span>}
+          </button>
+
+          <button
+            type="button"
+            className={`sidebar-nav-btn ${activeTab === 'catalogo' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('catalogo'); setMobileSidebarOpen(false); }}
+            title="Tabela de Preços e Insumos de Engenharia"
           >
-            Tabela de Preços ({currentCatalogList.length})
-          </a>
+            <span className="sidebar-nav-icon"><Svg k="orc" s={18} /></span>
+            <span className="sidebar-nav-label">Tabela de Preços</span>
+            <span className="sidebar-nav-badge" style={{ background: 'var(--surface-3)', color: 'var(--text-2)' }}>{currentCatalogList.length}</span>
+          </button>
+
+          <div className="sidebar-nav-section-title" style={{ marginTop: 12 }}>Ferramentas & Gestão</div>
+
+          <button
+            type="button"
+            className="sidebar-nav-btn"
+            onClick={() => { setEscrowModalOpen(true); setMobileSidebarOpen(false); }}
+            title="Conta Escrow e Valores Protegidos"
+          >
+            <span className="sidebar-nav-icon"><Svg k="shield" s={18} color="var(--ok)" /></span>
+            <span className="sidebar-nav-label">Conta Escrow</span>
+            <span className="sidebar-nav-badge" style={{ background: 'rgba(16, 185, 129, 0.15)', color: 'var(--ok)' }}>R$ 186k</span>
+          </button>
+
+          <button
+            type="button"
+            className="sidebar-nav-btn"
+            onClick={() => { setRadiusModalOpen(true); setMobileSidebarOpen(false); }}
+            title="Raio e Cidades Atendidas"
+          >
+            <span className="sidebar-nav-icon"><Svg k="pin" s={18} /></span>
+            <span className="sidebar-nav-label">Raio de Atuação</span>
+            <span className="sidebar-nav-badge" style={{ background: 'var(--surface-3)', color: 'var(--text-2)' }}>{coverageRadius} km</span>
+          </button>
+
+          <button
+            type="button"
+            className="sidebar-nav-btn"
+            onClick={() => { setAvailabilityModalOpen(true); setMobileSidebarOpen(false); }}
+            title="Disponibilidade e SLA Operacional"
+          >
+            <span className="sidebar-nav-icon"><Svg k="clock" s={18} /></span>
+            <span className="sidebar-nav-label">SLA & Capacidade</span>
+            <span className="sidebar-nav-badge" style={{ background: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'var(--surface-3)', color: isOnline ? 'var(--ok)' : 'var(--muted)' }}>
+              {isOnline ? 'Ativo' : 'Pausa'}
+            </span>
+          </button>
         </nav>
 
-        {/* Ações da Topbar */}
-        <div className="actions">
+        {/* Rodapé da Sidebar */}
+        <div className="supplier-sidebar-footer">
+          <div
+            className="sidebar-company-card"
+            onClick={() => setSupplierMenuOpen(!supplierMenuOpen)}
+            title={`Empresa ativa: ${selectedSupName}`}
+          >
+            <div className="sidebar-company-avatar">
+              {selectedSupName.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="sidebar-company-info">
+              <div className="sidebar-company-name">{selectedSupName}</div>
+              <div className="sidebar-company-status">
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: isOnline ? 'var(--ok)' : 'var(--muted)', display: 'inline-block' }} />
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  {isOnline ? 'Online' : 'Pausado'} · <Svg k="star" s={10} color="var(--accent)" /> {currentSup.r}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            className="sidebar-bottom-toggle-btn"
+            onClick={onSwitchToClient}
+            title="Voltar para a visão do dono da obra"
+          >
+            <Svg k="back" s={14} />
+            <span>Visão do Cliente</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ----------------- VIEWPORT PRINCIPAL COM TOPBAR ----------------- */}
+      <div className="supplier-main-viewport">
+        {/* Topbar Minimalista Superior */}
+        <header className="supplier-topbar">
+          <div className="supplier-topbar-left">
+            <button
+              type="button"
+              className="supplier-mobile-toggle"
+              onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
+              aria-label="Abrir menu"
+              title="Abrir menu"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+
+            <div className="supplier-breadcrumb">
+              <span>Portal do Fornecedor</span>
+              <span style={{ opacity: 0.5 }}>/</span>
+              <b>{
+                activeTab === 'geral' ? 'Painel da Empresa' :
+                activeTab === 'rfqs' ? 'Oportunidades & RFQs' :
+                activeTab === 'proposta' ? 'Emissor de Proposta' :
+                activeTab === 'chat' ? 'Negociações & Mensagens' : 'Tabela de Preços'
+              }</b>
+            </div>
+          </div>
+
+          <div className="supplier-topbar-actions">
           {/* Seletor de Empresa Cadastrada */}
           <div className="sup-select-chip" title="Alternar visão de fornecedor cadastrado na OFIR">
             <Svg k="building" s={15} color="var(--accent)" />
@@ -1208,55 +1357,15 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         </div>
       </header>
 
-      {/* ----------------- SUBNAV RESPONSIVA (TABLETS E MOBILE) ----------------- */}
-      <nav className="supplier-subnav-bar" aria-label="Navegação do Fornecedor">
-        <button
-          type="button"
-          className={`subnav-pill ${activeTab === 'geral' ? 'active' : ''}`}
-          onClick={() => setActiveTab('geral')}
-        >
-          <Svg k="building" s={14} /> Painel da Empresa
-        </button>
-        <button
-          type="button"
-          className={`subnav-pill ${activeTab === 'rfqs' ? 'active' : ''}`}
-          onClick={() => setActiveTab('rfqs')}
-        >
-          <Svg k="doc" s={14} /> Oportunidades & RFQs
-          <span className="tag" style={{ background: 'var(--accent)', color: '#fff' }}>2</span>
-        </button>
-        <button
-          type="button"
-          className={`subnav-pill ${activeTab === 'proposta' ? 'active' : ''}`}
-          onClick={() => setActiveTab('proposta')}
-        >
-          <Svg k="clip" s={14} /> Emissor de Proposta
-        </button>
-        <button
-          type="button"
-          className={`subnav-pill ${activeTab === 'chat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('chat')}
-        >
-          <Svg k="msg" s={14} /> Mensagens
-          {supConvs.length > 0 && <span className="tag">{supConvs.length}</span>}
-        </button>
-        <button
-          type="button"
-          className={`subnav-pill ${activeTab === 'catalogo' ? 'active' : ''}`}
-          onClick={() => setActiveTab('catalogo')}
-        >
-          <Svg k="orc" s={14} /> Preços ({currentCatalogList.length})
-        </button>
-      </nav>
 
       {/* ----------------- SUB-HEADER B2B DE STATUS ----------------- */}
-      <div style={{ background: 'var(--surface)', borderBottom: '1px solid var(--line)', padding: '10px var(--g)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <div className="supplier-status-strip">
+        <div className="supplier-status-strip-inner">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: isOnline ? 'var(--ok)' : 'var(--muted)', display: 'inline-block' }}></span>
             <strong style={{ color: 'var(--text)' }}>{currentSup.n}</strong>
             {CHECK_BADGE}
-            <span style={{ color: 'var(--muted)' }}>
+            <span style={{ color: 'var(--muted)', fontSize: 12.5 }}>
               · Atendendo {coverageCities.slice(0, 3).join(', ')}{coverageCities.length > 3 ? ` e mais ${coverageCities.length - 3}` : ''} e raio de {coverageRadius} km
             </span>
           </div>
@@ -1277,75 +1386,264 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
       </div>
 
       {/* ----------------- CONTEÚDO PRINCIPAL ----------------- */}
-      <main style={{ flex: 1, padding: '24px var(--g) 48px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+      <main className="supplier-portal-content">
 
-        {/* ==================== ABA 1: PAINEL DA EMPRESA ==================== */}
+        {/* ==================== ABA 1: PAINEL DA EMPRESA (BENTO GRID MINIMALISTA) ==================== */}
         {activeTab === 'geral' && (
           <div>
-            <div className="sup-dashboard-grid">
-              <div className="card" style={{ cursor: 'default' }}>
-                <div className="card-head">
-                  <span className="eyebrow">CREDENCIADO OFIR · ENGENHARIA & FORNECIMENTO</span>
-                  <span className="pill ok">Ativo</span>
+            <div className="bento-grid">
+              {/* Card 1: Perfil Credenciado & SLA (Span 2 colunas) */}
+              <div className="bento-card bento-col-2">
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon">
+                      <Svg k="building" s={18} />
+                    </div>
+                    <div>
+                      <h3 className="bento-card-title">
+                        {currentSup.n} {CHECK_BADGE}
+                      </h3>
+                      <p className="bento-card-subtitle">
+                        {currentSup.e} · Especialista em {currentSup.s}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span className="bento-pill ok">
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: isOnline ? 'var(--ok)' : 'var(--muted)', display: 'inline-block' }} />
+                      {isOnline ? 'Operação Ativa' : 'Pausado'}
+                    </span>
+                    <span className="bento-pill accent">Credenciado OFIR</span>
+                  </div>
                 </div>
-                <h3 style={{ margin: '8px 0 4px', fontSize: 20 }}>{currentSup.n} {CHECK_BADGE}</h3>
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--muted)' }}>{currentSup.e} · Especialista em {currentSup.s}</p>
-                <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  <span className="chip" style={{ fontSize: 11 }}>
-                    <Svg k="star" s={12} color="var(--accent)" /> {currentSup.r} ({currentSup.a} avaliações)
-                  </span>
-                  <span className="chip" style={{ fontSize: 11 }}>Atende em Campinas e região</span>
-                  <span className="chip" style={{ fontSize: 11 }}>Raio de {currentSup.raio} km</span>
-                  <span className="chip" style={{ fontSize: 11 }}>Prazo médio: Sob medida</span>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginTop: 4 }}>
+                  <div style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Svg k="star" s={12} color="var(--accent)" /> Reputação
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                      {currentSup.r} <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--muted)' }}>({currentSup.a} avaliações)</span>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Svg k="pin" s={12} color="var(--accent)" /> Raio de Atuação
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                      {coverageRadius} km <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--muted)' }}>({coverageCities.length} cidades)</span>
+                    </div>
+                  </div>
+
+                  <div style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8, border: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Svg k="clock" s={12} color="var(--accent)" /> SLA Médio
+                    </div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>
+                      &lt; {responseSlaHours}h <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--muted)' }}>(Meta OFIR)</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--line-2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: 'var(--muted)' }}>Compromisso de SLA OFIR (72 horas)</span>
-                    <b style={{ color: 'var(--accent)' }}>98.4% respondidos no prazo</b>
+
+                <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)', marginTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, alignItems: 'center' }}>
+                    <span style={{ color: 'var(--muted)' }}>Conformidade de SLA OFIR (72 horas)</span>
+                    <b style={{ color: 'var(--accent)', fontFamily: 'ui-monospace, monospace' }}>98.4% no prazo</b>
                   </div>
                   <div style={{ height: 4, background: 'var(--surface-3)', borderRadius: 2, marginTop: 6, overflow: 'hidden' }}>
-                    <div style={{ width: '98.4%', height: '100%', background: 'var(--accent)' }}></div>
+                    <div style={{ width: '98.4%', height: '100%', background: 'var(--accent)', borderRadius: 2 }}></div>
                   </div>
-                  <span style={{ fontSize: 10.5, color: 'var(--muted)', display: 'block', marginTop: 4 }}>
-                    Manter o SLA abaixo de 72h garante o selo Fornecedor Verificado e prioridade em novas obras.
-                  </span>
                 </div>
               </div>
 
-              <div className="card" onClick={() => setActiveTab('rfqs')} style={{ cursor: 'pointer' }}>
-                <div className="card-head">
-                  <span className="ico acc"><Svg k="doc" s={18} /></span>
-                  <span className="pill ok">2 novas</span>
+              {/* Card 2: Custódia & Escrow (Span 1 coluna) */}
+              <div className="bento-card" onClick={() => setEscrowModalOpen(true)} style={{ cursor: 'pointer' }}>
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon" style={{ color: 'var(--ok)' }}>
+                      <Svg k="shield" s={18} color="var(--ok)" />
+                    </div>
+                    <div>
+                      <h4 className="bento-card-title">Custódia Protegida</h4>
+                      <p className="bento-card-subtitle">Garantia Escrow OFIR</p>
+                    </div>
+                  </div>
+                  <span className="bento-pill ok">Seguro</span>
                 </div>
-                <h4 style={{ fontSize: 16, marginTop: 8 }}>Oportunidades & RFQs</h4>
-                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 12px' }}>
-                  Clientes enviaram plantas de arquitetura aguardando sua cotação.
-                </p>
-                <button className="btn sm" style={{ alignSelf: 'flex-start' }}>Ver Solicitações</button>
+                <div>
+                  <div className="bento-metric-large" style={{ color: 'var(--ok)' }}>R$ 186.000</div>
+                  <p className="bento-metric-sub">
+                    Liberado automaticamente por medição e aprovação técnica de cada marco.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 'auto', gap: 6 }}
+                  onClick={e => { e.stopPropagation(); setEscrowModalOpen(true); }}
+                >
+                  <Svg k="shield" s={13} />
+                  <span>Ver Extrato Escrow</span>
+                </button>
               </div>
 
-              <div className="card" onClick={() => setActiveTab('proposta')} style={{ cursor: 'pointer' }}>
-                <div className="card-head">
-                  <span className="ico acc"><Svg k="shield" s={18} /></span>
-                  <span className="pill ok">R$ 186.000</span>
+              {/* Card 3: Cotações & RFQs (Span 1 coluna) */}
+              <div className="bento-card" onClick={() => setActiveTab('rfqs')} style={{ cursor: 'pointer' }}>
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon">
+                      <Svg k="doc" s={18} />
+                    </div>
+                    <div>
+                      <h4 className="bento-card-title">Oportunidades & RFQs</h4>
+                      <p className="bento-card-subtitle">Demandas na região</p>
+                    </div>
+                  </div>
+                  <span className="bento-pill accent">2 novas</span>
                 </div>
-                <h4 style={{ fontSize: 16, marginTop: 8 }}>Custódia Garantida</h4>
-                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 12px' }}>
-                  Pagamento protegido em conta escrow liberado por etapa concluída.
-                </p>
-                <button className="ghost sm" style={{ alignSelf: 'flex-start' }}>Ver Propostas</button>
+                <div>
+                  <div className="bento-metric-large">02 pendentes</div>
+                  <p className="bento-metric-sub">
+                    Plantas arquitetônicas enviadas por clientes aguardando sua proposta.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 'auto', gap: 6 }}
+                  onClick={e => { e.stopPropagation(); setActiveTab('rfqs'); }}
+                >
+                  <Svg k="doc" s={13} />
+                  <span>Analisar RFQs</span>
+                </button>
               </div>
 
-              <div className="card" onClick={() => setActiveTab('chat')} style={{ cursor: 'pointer' }}>
-                <div className="card-head">
-                  <span className="ico"><Svg k="msg" s={18} /></span>
-                  <span className="pill">1 cliente</span>
+              {/* Card 4: Negociações & Mensagens (Span 1 coluna) */}
+              <div className="bento-card" onClick={() => setActiveTab('chat')} style={{ cursor: 'pointer' }}>
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon">
+                      <Svg k="msg" s={18} />
+                    </div>
+                    <div>
+                      <h4 className="bento-card-title">Negociações</h4>
+                      <p className="bento-card-subtitle">Chat direto B2B</p>
+                    </div>
+                  </div>
+                  <span className="bento-pill">{supConvs.length} chat{supConvs.length > 1 ? 's' : ''}</span>
                 </div>
-                <h4 style={{ fontSize: 16, marginTop: 8 }}>Em Negociação</h4>
-                <p style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 12px' }}>
-                  O cliente solicitou alinhamento de prazos e valores na proposta.
-                </p>
-                <button className="ghost sm" style={{ alignSelf: 'flex-start' }}>Abrir Chat</button>
+                <div>
+                  <div className="bento-metric-large">{supConvs.length} cliente{supConvs.length > 1 ? 's' : ''}</div>
+                  <p className="bento-metric-sub">
+                    Alinhamentos de especificações, cronogramas de entrega e condições.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 'auto', gap: 6 }}
+                  onClick={e => { e.stopPropagation(); setActiveTab('chat'); }}
+                >
+                  <Svg k="msg" s={13} />
+                  <span>Abrir Conversas</span>
+                </button>
+              </div>
+
+              {/* Card 5: Tabela de Preços (Span 1 coluna) */}
+              <div className="bento-card" onClick={() => setActiveTab('catalogo')} style={{ cursor: 'pointer' }}>
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon">
+                      <Svg k="orc" s={18} />
+                    </div>
+                    <div>
+                      <h4 className="bento-card-title">Tabela de Preços</h4>
+                      <p className="bento-card-subtitle">Itens cadastrados</p>
+                    </div>
+                  </div>
+                  <span className="bento-pill">{currentCatalogList.length} itens</span>
+                </div>
+                <div>
+                  <div className="bento-metric-large">{currentCatalogList.length} insumos</div>
+                  <p className="bento-metric-sub">
+                    Valores unitários pré-parametrizados para orçamentação acelerada.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost sm"
+                  style={{ alignSelf: 'flex-start', marginTop: 'auto', gap: 6 }}
+                  onClick={e => { e.stopPropagation(); setActiveTab('catalogo'); }}
+                >
+                  <Svg k="orc" s={13} />
+                  <span>Gerenciar Tabela</span>
+                </button>
+              </div>
+
+              {/* Card 6: Ações Rápidas & Gestão Operacional (Span 3 colunas) */}
+              <div className="bento-card bento-col-3">
+                <div className="bento-card-header">
+                  <div className="bento-card-title-wrap">
+                    <div className="bento-card-icon">
+                      <Svg k="settings" s={18} />
+                    </div>
+                    <div>
+                      <h4 className="bento-card-title">Ações Rápidas & Gestão Operacional</h4>
+                      <p className="bento-card-subtitle">Atalhos para fluxos frequentes do fornecedor</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bento-actions-grid">
+                  <button
+                    type="button"
+                    className="bento-action-btn"
+                    onClick={() => setActiveTab('proposta')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                      <Svg k="clip" s={16} />
+                      <b>Emitir Nova Proposta</b>
+                    </div>
+                    <span>Elaborar orçamento técnico com memorial descritivo e marcos de pagamento</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="bento-action-btn"
+                    onClick={() => setRadiusModalOpen(true)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                      <Svg k="pin" s={16} />
+                      <b>Raio de Atuação</b>
+                    </div>
+                    <span>Definir raio de {coverageRadius} km e gerenciar as {coverageCities.length} cidades atendidas</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="bento-action-btn"
+                    onClick={() => setAvailabilityModalOpen(true)}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)' }}>
+                      <Svg k="clock" s={16} />
+                      <b>SLA & Capacidade</b>
+                    </div>
+                    <span>Configurar meta de resposta em {responseSlaHours}h e limite de obras concomitantes</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="bento-action-btn"
+                    onClick={onSwitchToClient}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
+                      <Svg k="eye" s={16} />
+                      <b>Visão do Cliente</b>
+                    </div>
+                    <span>Visualizar a experiência do dono da obra e como suas propostas aparecem</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1677,12 +1975,12 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                       <table className="prop-items-table">
                         <thead>
                           <tr>
-                            <th style={{ width: '42%' }}>Item / Serviço de Engenharia</th>
-                            <th style={{ width: '14%' }}>Unidade</th>
-                            <th style={{ width: '16%' }}>Quantidade</th>
-                            <th style={{ width: '18%' }}>Preço Unit. (R$)</th>
-                            <th style={{ width: '16%', textAlign: 'right' }}>Total (R$)</th>
-                            <th style={{ width: '6%', textAlign: 'center' }}></th>
+                            <th style={{ width: '40%' }}>Item / Serviço de Engenharia</th>
+                            <th style={{ width: '12%' }}>Unidade</th>
+                            <th style={{ width: '14%' }}>Quantidade</th>
+                            <th style={{ width: '16%' }}>Preço Unit. (R$)</th>
+                            <th style={{ width: '14%', textAlign: 'right' }}>Total (R$)</th>
+                            <th style={{ width: '4%', textAlign: 'center' }}></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -2282,6 +2580,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         )}
 
       </main>
+      </div>
 
       {/* ==================== MODAL: ADICIONAR / EDITAR ITEM DO CATÁLOGO ==================== */}
       {catalogModalOpen && (

@@ -4,6 +4,7 @@ import {
   catOf, filterSuppliers, filterSummary, getSupplierDetails, initials, rate,
   segList, simulate, stageName, sysName, useOrc, useStore,
   calcObraProgress, calcQuoteCountdown, calc24hCancellation,
+  LEGAL_PILLARS, TERMS_OF_USE_TEXT, PRIVACY_POLICY_TEXT,
   type Supplier, type ServiceItem, type Message, type Conversation, type Obra, type ObraStage,
   type AppNotification, type NotificationCategory
 } from '@ofirapp/core';
@@ -133,11 +134,13 @@ function WebQuoteCountdown({ conv }: { conv: Conversation }) {
 }
 
 const SYSTEM_IMAGES: Record<string, string> = {
-  eps: '/systems/eps.jpg',
-  steel: '/systems/steel.jpg',
-  wood: '/systems/wood.jpg',
-  alvenaria: '/systems/alvenaria.jpg',
-  bloco: '/systems/bloco.jpg',
+  alvenaria: '/casa_alvenaria_convencional.png',
+  bloco: '/casa_alvenaria_estrutural.png',
+  eps: '/casa_painel_monolitico.png',
+  steel: '/casa_steel_frame_clean.png',
+  wood: '/casa_alto_padrao_wood_frame.png',
+  metalica: '/casa_estrutura_metalica.png',
+  acabada: '/casa_acabada.png',
   premoldado: '/systems/premoldado.jpg',
 };
 
@@ -159,7 +162,7 @@ const STANDARD_INFO: StandardInfo[] = [
     label: 'Padrão Médio',
     img: '/type/1.jpg',
     desc: 'Construção contemporânea com acabamentos essenciais de excelente qualidade e ótimo custo-benefício.',
-    m2Ref: 'a partir de R$ 2.900/m²',
+    m2Ref: 'Média R$ 2.900/m²',
   },
   {
     idx: 1,
@@ -168,7 +171,7 @@ const STANDARD_INFO: StandardInfo[] = [
     label: 'Padrão Médio-Alto',
     img: '/type/2.jpg',
     desc: 'Fachada contemporânea com detalhes em pedra e ripados, porcelanatos nobres e ampla integração.',
-    m2Ref: 'a partir de R$ 4.200/m²',
+    m2Ref: 'Média R$ 4.200/m²',
   },
   {
     idx: 2,
@@ -177,7 +180,7 @@ const STANDARD_INFO: StandardInfo[] = [
     label: 'Alto Padrão',
     img: '/type/3.jpg',
     desc: 'Grandes vãos envidraçados, mármores nobres, área gourmet completa e piscina privativa.',
-    m2Ref: 'a partir de R$ 6.200/m²',
+    m2Ref: 'Média R$ 6.200/m²',
   },
   {
     idx: 3,
@@ -186,7 +189,7 @@ const STANDARD_INFO: StandardInfo[] = [
     label: 'Alto Luxo',
     img: '/type/4.jpg',
     desc: 'Arquitetura autoral inovadora, balanços estruturais, piscina com borda infinita e acabamento refinado.',
-    m2Ref: 'a partir de R$ 8.800/m²',
+    m2Ref: 'Média R$ 8.800/m²',
   },
   {
     idx: 4,
@@ -194,8 +197,8 @@ const STANDARD_INFO: StandardInfo[] = [
     tag: 'Padrão 5',
     label: 'Ultra Luxo',
     img: '/type/5.jpg',
-    desc: 'Propriedade monumental exclusiva, jardins clássicos, fontes ornamentais e altíssimo padrão construtivo.',
-    m2Ref: 'a partir de R$ 13.500/m²',
+    desc: 'Propriedade monumental exclusiva, grandes vãos, mármores nobres importados, esquadrias minimalistas e altíssimo padrão construtivo.',
+    m2Ref: 'R$ 9.000 a R$ 20.000+ (Média R$ 14.500/m²)',
   },
 ];
 
@@ -522,8 +525,35 @@ export default function App() {
   const [simAreaInput, setSimAreaInput] = useState('420');
   const [simSys, setSimSys] = useState('alvenaria');
   const [simStd, setSimStd] = useState(1);
-  const [hoveredStd, setHoveredStd] = useState<number | null>(null);
+  const [stdLightbox, setStdLightbox] = useState<StandardInfo | null>(null);
   const simResult = simulate(simArea, simSys, simStd);
+
+  useEffect(() => {
+    if (!stdLightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setStdLightbox(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [stdLightbox]);
+
+  // LGPD e Conformidade Legal Brasileira
+  const [cookieConsent, setCookieConsent] = useState(() => {
+    try {
+      return localStorage.getItem('ofir_lgpd_consent') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [signupConsent, setSignupConsent] = useState(false);
+
+  const acceptLgpdConsent = () => {
+    try {
+      localStorage.setItem('ofir_lgpd_consent', 'true');
+    } catch {}
+    setCookieConsent(true);
+    toast('Privacidade e LGPD', 'Suas preferências de privacidade foram salvas em conformidade com a Lei 13.709/2018.');
+  };
 
   // Address edit state & CEP lookup
   const [editAddrId, setEditAddrId] = useState<string | null>(null);
@@ -1611,68 +1641,143 @@ export default function App() {
               />
             </div>
             <div className="ctrl std-ctrl">
-              <div className="std-ctrl-head">
-                <label>Padrão de acabamento</label>
-                <span className="std-hint">
-                  <Svg k="info" s={13} /> Passe o cursor para prévia visual
-                </span>
-              </div>
-              <div className="seg" id="s-std" onMouseLeave={() => setHoveredStd(null)}>
-                {STANDARDS.map((name, idx) => {
-                  const info = STANDARD_INFO[idx] || STANDARD_INFO[0];
-                  const isHovered = hoveredStd === idx;
-                  return (
-                    <div
-                      key={name}
-                      className="seg-btn-wrap"
-                      onMouseEnter={() => setHoveredStd(idx)}
-                    >
-                      <button
-                        type="button"
-                        className={simStd === idx ? 'on' : ''}
-                        onClick={() => {
-                          setSimStd(idx);
-                          const maxForIdx = idx >= 3 ? 20000 : idx === 2 ? 5000 : 2000;
-                          if (simArea > maxForIdx) {
-                            setSimArea(maxForIdx);
-                            setSimAreaInput(String(maxForIdx));
-                          }
-                        }}
-                        onFocus={() => setHoveredStd(idx)}
-                        onBlur={() => setHoveredStd(null)}
-                      >
-                        {name}
-                      </button>
-
-                      {isHovered && (
-                        <div className={`std-tooltip std-tooltip-align-${idx}`} role="tooltip">
-                          <div className="std-tooltip-img-wrap">
-                            <img src={info.img} alt={info.label} className="std-tooltip-img" />
-                            <span className="std-tooltip-badge">{info.tag}</span>
-                          </div>
-                          <div className="std-tooltip-body">
-                            <div className="std-tooltip-header">
-                              <span className="std-tooltip-title">{info.label}</span>
-                              <span className="std-tooltip-m2">{info.m2Ref}</span>
-                            </div>
-                            <p className="std-tooltip-desc">{info.desc}</p>
-                          </div>
-                          <div className="std-tooltip-arrow" />
-                        </div>
-                      )}
+              {(() => {
+                const currentStd = STANDARD_INFO[simStd] || STANDARD_INFO[0];
+                return (
+                  <>
+                    <div className="std-ctrl-head">
+                      <label>Padrão de acabamento</label>
+                      <span className="std-active-tag">
+                        {currentStd.tag} · {currentStd.m2Ref}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+
+                    <div className="seg std-seg" id="s-std" role="tablist" aria-label="Padrão de acabamento">
+                      {STANDARDS.map((name, idx) => (
+                        <button
+                          key={name}
+                          type="button"
+                          role="tab"
+                          aria-selected={simStd === idx}
+                          className={`std-btn ${simStd === idx ? 'on' : ''}`}
+                          onClick={() => {
+                            setSimStd(idx);
+                            const maxForIdx = idx >= 3 ? 20000 : idx === 2 ? 5000 : 2000;
+                            if (simArea > maxForIdx) {
+                              setSimArea(maxForIdx);
+                              setSimAreaInput(String(maxForIdx));
+                            }
+                          }}
+                        >
+                          {name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Prévia visual fixa e permanente da casa para o padrão selecionado */}
+                    <div
+                      className="std-preview-card"
+                      aria-label={`Prévia do ${currentStd.label}. Clique para ver ampliado`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setStdLightbox(currentStd)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setStdLightbox(currentStd);
+                        }
+                      }}
+                      title="Clique para ver a foto ampliada"
+                    >
+                      <div className="std-preview-media">
+                        <img
+                          src={currentStd.img}
+                          alt={currentStd.label}
+                          className="std-preview-img"
+                          key={currentStd.idx}
+                          loading="lazy"
+                        />
+                        <span className="std-preview-badge">{currentStd.tag}</span>
+                        <div className="std-preview-zoom-hint">
+                          <Svg k="search" s={13} />
+                          <span>Ampliar</span>
+                        </div>
+                      </div>
+                      <div className="std-preview-body">
+                        <div className="std-preview-header">
+                          <span className="std-preview-title">{currentStd.label}</span>
+                          <span className="std-preview-m2">{currentStd.m2Ref}</span>
+                        </div>
+                        <p className="std-preview-desc">{currentStd.desc}</p>
+                        <div className="std-preview-action">
+                          <span className="std-preview-action-btn">
+                            <Svg k="search" s={12} />
+                            <span>Clique para ver ampliado</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
             <div className="result">
               <div><span>Custo estimado</span><b id="r-cost">{simResult.cost}</b></div>
-              <div><span>Valor por m²</span><b id="r-m2">{simResult.m2}</b></div>
+              <div>
+                <span>Valor por m²</span>
+                <b id="r-m2">{simResult.m2}</b>
+                <span className="result-m2-avg">Média: {simResult.m2Val}</span>
+              </div>
               <div className="result-time"><span>Prazo estimado</span><b id="r-time">{simResult.time}</b></div>
             </div>
-            <p className="note">Valores de referência do protótipo. Substitua pela sua base de custos por região (ex.: CUB do estado) antes de publicar.</p>
+            <p className="note">Valores referenciais calculados com base em benchmarking de mercado e CUB/Sinduscon estadual. No Ultra Luxo (R$ 9.000 a R$ 20.000+/m², com média de R$ 14.500/m²), os custos consideram acabamentos importados, automação completa e especificidades do projeto.</p>
           </div>
         </section>
+
+        {/* LIGHTBOX DO PADRÃO DA CASA */}
+        {stdLightbox && (
+          <div
+            className="std-lightbox-overlay"
+            onClick={() => setStdLightbox(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Visualização em lightbox do ${stdLightbox.label}`}
+          >
+            <div
+              className="std-lightbox-modal"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="std-lightbox-head">
+                <div className="std-lightbox-title-wrap">
+                  <span className="std-lightbox-badge">{stdLightbox.tag}</span>
+                  <span className="std-lightbox-title">{stdLightbox.label}</span>
+                  <span className="std-lightbox-m2">{stdLightbox.m2Ref}</span>
+                </div>
+                <button
+                  type="button"
+                  className="std-lightbox-close"
+                  onClick={() => setStdLightbox(null)}
+                  aria-label="Fechar lightbox"
+                >
+                  <Svg k="x" s={18} />
+                </button>
+              </div>
+
+              <div className="std-lightbox-media">
+                <img
+                  src={stdLightbox.img}
+                  alt={stdLightbox.label}
+                  className="std-lightbox-img"
+                />
+              </div>
+
+              <div className="std-lightbox-foot">
+                <p className="std-lightbox-desc">{stdLightbox.desc}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {/* PROJETOS PRONTOS */}
         <section id="projetos">
@@ -1755,10 +1860,11 @@ export default function App() {
             <a href="#">Financiamento</a>
           </div>
           <div>
-            <h5>Empresa</h5>
-            <a href="#">Sobre</a>
-            <a href="#">Termos</a>
-            <a href="#">Privacidade</a>
+            <h5>Empresa & Legal</h5>
+            <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('sobre'); }}>Sobre a OFIR</a>
+            <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('termos'); }}>Termos de Uso</a>
+            <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('privacidade'); }}>Privacidade (LGPD)</a>
+            <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('conformidade'); }}>Conformidade Legal</a>
             <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('config'); }}>Configurações</a>
           </div>
         </div>
@@ -1792,7 +1898,7 @@ export default function App() {
       {activeScreen && (
         <div className="screen" id="screen" style={{ display: 'flex' }}>
           <div className="screen-scrim" onClick={() => setActiveScreen(null)}></div>
-          <div className={`screen-panel ${activeScreen === 'analise-projeto' || activeScreen === 'notificacoes' ? 'wide' : ''}`} id="screen-panel">
+          <div className={`screen-panel ${['analise-projeto', 'notificacoes', 'termos', 'privacidade', 'conformidade', 'sobre'].includes(activeScreen || '') ? 'wide' : ''}`} id="screen-panel">
             <header className="screen-head">
               {activeScreen?.startsWith('chat:') || activeScreen?.startsWith('cotacao:') || activeScreen?.startsWith('ped:') || activeScreen === 'checkout' || activeScreen === 'paid' ? (
                 <button className="icon-btn" aria-label="Voltar" onClick={() => {
@@ -1825,6 +1931,10 @@ export default function App() {
                 {activeScreen?.startsWith('ped:') && `Pedido ${activeScreen.split(':')[1]}`}
                 {activeScreen === 'perfil' && 'Perfil'}
                 {activeScreen === 'config' && 'Configurações'}
+                {activeScreen === 'termos' && 'Termos de Uso da Plataforma'}
+                {activeScreen === 'privacidade' && 'Privacidade & LGPD (Lei 13.709/2018)'}
+                {activeScreen === 'conformidade' && 'Conformidade com a Legislação Brasileira'}
+                {activeScreen === 'sobre' && 'Sobre a OFIR'}
               </h3>
               <button className="icon-btn" id="screen-x" aria-label="Fechar" onClick={() => setActiveScreen(null)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M6 6l12 12M18 6 6 18" /></svg>
@@ -2162,6 +2272,16 @@ export default function App() {
                               ))}
                               <div className="tot"><span>Total</span><b>R$ {tot.toLocaleString('pt-BR')}</b></div>
                             </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8, padding: '8px 10px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 11.5, color: 'var(--text-2)' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Svg k="shield" s={12} color="var(--accent)" />
+                                <b>Validade legal da proposta:</b> 10 dias (Art. 40, § 2º do CDC)
+                              </span>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Svg k="check" s={12} color="var(--accent)" />
+                                <b>Garantia legal da obra:</b> 5 anos de solidez e segurança (Art. 618 do Código Civil)
+                              </span>
+                            </div>
                             {prop.status === 'open' ? (
                               <div className="prop-acts">
                                 <button
@@ -2262,6 +2382,12 @@ export default function App() {
                       <div className="sum rows">
                         <div><span>Serviços e Etapas</span><b>{BRLc(totals.svc)}</b></div>
                         <div className="tot"><span>Total do orçamento</span><b>{BRLc(totals.total)}</b></div>
+                      </div>
+                      <div className="policy" style={{ marginTop: 12 }}>
+                        <Svg k="shield" s={16} />
+                        <div>
+                          <b>Conformidade Legal do Orçamento:</b> Discriminação prévia e validade garantida de 10 dias (Art. 40 do CDC) e garantia legal de 5 anos para solidez e segurança de obras civis (Art. 618 do Código Civil).
+                        </div>
                       </div>
                       <p className="pf-note">{groups.length} {groups.length > 1 ? 'fornecedores' : 'fornecedor'} · na contratação, cada fornecedor vira um contrato com custódia por etapa.</p>
                     </>
@@ -3155,6 +3281,21 @@ export default function App() {
                       <span>Histórico de pedidos</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
+                    <button onClick={() => setActiveScreen('termos')}>
+                      <span>Termos de Uso da Plataforma</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
+                    <button onClick={() => setActiveScreen('privacidade')}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        Privacidade e LGPD
+                        <span className="notif-count-pill" style={{ background: 'rgba(23,74,64,0.15)', color: 'var(--accent)' }}>Lei 13.709</span>
+                      </span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
+                    <button onClick={() => setActiveScreen('conformidade')}>
+                      <span>Conformidade com Leis do Brasil</span>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
+                    </button>
                   </div>
                 </>
               )}
@@ -3440,6 +3581,235 @@ export default function App() {
                         );
                       });
                     })()}
+                  </div>
+                </div>
+              )}
+
+              {/* TELA: TERMOS DE USO */}
+              {activeScreen === 'termos' && (
+                <div className="legal-page-wrap">
+                  <div className="legal-header-box">
+                    <div className="legal-badge-row">
+                      <span className="legal-law-badge"><Svg k="doc" s={12} /> Lei nº 8.078/1990 (CDC)</span>
+                      <span className="legal-law-badge"><Svg k="shield" s={12} /> Código Civil (Arts. 610-626)</span>
+                      <span className="legal-law-badge"><Svg k="check" s={12} /> Decreto nº 7.962/2013</span>
+                    </div>
+                    <h3 className="legal-header-title">Termos e Condições de Uso</h3>
+                    <p className="legal-header-sub">
+                      Direitos, garantias e normas de contratação para proprietários de obras e fornecedores credenciados na OFIR.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">1. Orçamento Prévio Obrigatório e Validade (Art. 40 do CDC)</h4>
+                    <p className="legal-article-content">
+                      Nos termos do Artigo 40 da Lei Federal nº 8.078/1990 (Código de Defesa do Consumidor), todo fornecedor credenciado na OFIR é obrigado a entregar orçamento prévio discriminando mão de obra, materiais, condições de pagamento e datas estimadas de início e término.
+                      {'\n\n'}
+                      <b>Validade Legal:</b> Conforme o § 2º do Artigo 40, todo orçamento emitido na OFIR possui validade legal garantida de <b>10 (dez) dias</b> a contar do recebimento, salvo se prazo diferente constar expressamente da proposta. Uma vez aprovado pelo consumidor, o orçamento vincula e obriga os contratantes.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">2. Garantia Legal de 5 Anos de Solidez e Segurança (Art. 618 do Código Civil)</h4>
+                    <p className="legal-article-content">
+                      Conforme estabelece o Artigo 618 da Lei Federal nº 10.406/2002 (Código Civil Brasileiro), nos contratos de empreitada de edifícios e construções consideráveis, o empreiteiro e fornecedor de execução respondem, durante o prazo irredutível de <b>5 (cinco) anos</b>, pela solidez e segurança da obra, tanto em razão dos materiais quanto do solo.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">3. Pagamento Protegido e Custódia por Etapa</h4>
+                    <p className="legal-article-content">
+                      Todos os pagamentos realizados pela plataforma OFIR ficam protegidos em conta de custódia e somente são liberados ao fornecedor após a vistoria, medição e confirmação expressa da conclusão da etapa pelo dono da obra.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">4. Direito de Arrependimento em Comércio Eletrônico (Art. 49 do CDC)</h4>
+                    <p className="legal-article-content">
+                      Em cumprimento ao Artigo 49 do CDC e ao Decreto Federal nº 7.962/2013, o cliente tem direito de desistir da contratação em até <b>7 (sete) dias corridos</b> após o pedido, recebendo reembolso integral caso os serviços no canteiro ainda não tenham sido iniciados ou insumos personalizados não tenham sido encomendados.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <button className="btn sm" type="button" onClick={() => setActiveScreen('privacidade')}>
+                      Política de Privacidade (LGPD)
+                    </button>
+                    <button className="ghost sm" type="button" onClick={() => setActiveScreen('conformidade')}>
+                      Pilares da Legislação
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TELA: POLÍTICA DE PRIVACIDADE E LGPD */}
+              {activeScreen === 'privacidade' && (
+                <div className="legal-page-wrap">
+                  <div className="legal-header-box">
+                    <div className="legal-badge-row">
+                      <span className="legal-law-badge"><Svg k="shield" s={12} /> Lei Federal nº 13.709/2018</span>
+                      <span className="legal-law-badge"><Svg k="globe" s={12} /> Marco Civil da Internet (Lei 12.965/14)</span>
+                    </div>
+                    <h3 className="legal-header-title">Privacidade e Proteção de Dados (LGPD)</h3>
+                    <p className="legal-header-sub">
+                      Transparência sobre como seus dados de cadastro, endereço da obra e projetos são tratados e protegidos.
+                    </p>
+                  </div>
+
+                  {/* Painel dos Direitos do Titular (Art. 18 da LGPD) */}
+                  <div className="legal-rights-box">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Svg k="check" s={16} />
+                      <b style={{ color: 'var(--text)' }}>Seus Direitos como Titular de Dados (Art. 18 da LGPD)</b>
+                    </div>
+                    <p style={{ fontSize: 12.5, color: 'var(--text-2)', margin: '4px 0 8px' }}>
+                      Você pode solicitar acesso, portabilidade ou revogação do consentimento a qualquer momento:
+                    </p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => {
+                          const dataToExport = {
+                            usuario: userForm,
+                            obra: obra,
+                            pedidosCount: orders.length,
+                            enderecosCount: addresses.length,
+                            dataExportacao: new Date().toISOString(),
+                            baseLegal: 'LGPD Artigo 18, Inciso V (Portabilidade de Dados Pessoais)'
+                          };
+                          const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `dados_ofir_lgpd_${Date.now()}.json`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                          toast('Portabilidade LGPD', 'Arquivo com seus dados pessoais exportado com sucesso.');
+                        }}
+                      >
+                        <Svg k="doc" s={14} /> Exportar meus dados
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost sm"
+                        onClick={() => {
+                          if (window.confirm('Deseja revogar o consentimento e redefinir suas preferências de privacidade?')) {
+                            localStorage.removeItem('ofir_lgpd_consent');
+                            setCookieConsent(false);
+                            toast('LGPD', 'Consentimento revogado. O aviso de privacidade foi reativado.');
+                          }
+                        }}
+                      >
+                        Revogar consentimento
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">Bases Legais de Tratamento (Art. 7º da LGPD)</h4>
+                    <p className="legal-article-content">
+                      A OFIR trata dados pessoais unicamente fundamentada em:
+                      {'\n'}• <b>Execução de Contrato (Art. 7º, V):</b> Para viabilizar cotações, orçamentos, contratos de etapas de obras e intermediação com fornecedores.
+                      {'\n'}• <b>Consentimento Expresso (Art. 7º, I):</b> Para envio de avisos de obras e comunicações por e-mail e WhatsApp.
+                      {'\n'}• <b>Cumprimento de Obrigação Legal (Art. 7º, II):</b> Para guarda de registros de acesso conforme o Art. 15 do Marco Civil da Internet.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">Compartilhamento de Dados</h4>
+                    <p className="legal-article-content">
+                      Seus dados de projeto e contato são compartilhados <b>apenas e exclusivamente com os fornecedores que você selecionar</b> para cotar ou contratar. A OFIR não comercializa dados para terceiros sob nenhuma hipótese.
+                    </p>
+                  </div>
+
+                  <div className="legal-dpo-box">
+                    <b>Encarregado de Proteção de Dados (DPO - Art. 41 da LGPD):</b>
+                    <p style={{ margin: '4px 0 0', fontSize: 12 }}>
+                      Para exercer seus direitos de confirmação, retificação ou exclusão, contate nosso DPO: <b>privacidade@ofir.com.br</b>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* TELA: CONFORMIDADE LEGAL DA OBRA */}
+              {activeScreen === 'conformidade' && (
+                <div className="legal-page-wrap">
+                  <div className="legal-header-box">
+                    <div className="legal-badge-row">
+                      <span className="legal-law-badge"><Svg k="shield" s={12} /> Ordenamento Jurídico Nacional</span>
+                      <span className="legal-law-badge"><Svg k="check" s={12} /> Repositório Leis do Brasil</span>
+                    </div>
+                    <h3 className="legal-header-title">Conformidade com as Leis do Brasil</h3>
+                    <p className="legal-header-sub">
+                      Conheça os pilares normativos federais que regem a plataforma OFIR para garantir segurança, legalidade e transparência na sua obra.
+                    </p>
+                  </div>
+
+                  <div className="legal-pillars-grid">
+                    {LEGAL_PILLARS.map(p => (
+                      <div key={p.id} className="legal-pillar-card">
+                        <div className="legal-pillar-top">
+                          <div className="legal-pillar-title-wrap">
+                            <div className="legal-pillar-icon">
+                              <Svg k={p.icon} s={16} />
+                            </div>
+                            <div>
+                              <div className="legal-pillar-name">{p.title}</div>
+                              <div className="legal-pillar-law">{p.lawRef}</div>
+                            </div>
+                          </div>
+                        </div>
+                        <p className="legal-pillar-desc">{p.description}</p>
+                        <ul className="legal-pillar-list">
+                          {p.obligations.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                    <button className="btn sm" type="button" onClick={() => setActiveScreen('termos')}>
+                      Termos de Uso
+                    </button>
+                    <button className="ghost sm" type="button" onClick={() => setActiveScreen('privacidade')}>
+                      Política de Privacidade
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TELA: SOBRE A OFIR */}
+              {activeScreen === 'sobre' && (
+                <div className="legal-page-wrap">
+                  <div className="legal-header-box">
+                    <div className="legal-badge-row">
+                      <span className="legal-law-badge"><Svg k="building" s={12} /> Ecossistema da Construção Civil</span>
+                      <span className="legal-law-badge"><Svg k="shield" s={12} /> Pagamento Protegido</span>
+                    </div>
+                    <h3 className="legal-header-title">Sobre a OFIR (BuyBuild)</h3>
+                    <p className="legal-header-sub">
+                      A plataforma inteligente que conecta proprietários de obras aos melhores sistemas construtivos e fornecedores credenciados do Brasil.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">Nossa Missão</h4>
+                    <p className="legal-article-content">
+                      Tornar a jornada da construção civil transparente, previsível e segura. Eliminar os riscos de atrasos e superfaturamentos por meio de orçamentos padronizados, contratos com custódia de pagamento e acompanhamento por etapas.
+                    </p>
+                  </div>
+
+                  <div className="legal-article-box">
+                    <h4 className="legal-article-title">Segurança e Compliance</h4>
+                    <p className="legal-article-content">
+                      Operamos em estrita conformidade com as leis federais brasileiras:
+                      {'\n'}• <b>Código de Defesa do Consumidor (Lei nº 8.078/90):</b> Orçamentos prévios vinculantes e validade garantida.
+                      {'\n'}• <b>Código Civil (Lei nº 10.406/02):</b> Garantia legal irredutível de 5 anos de solidez e segurança.
+                      {'\n'}• <b>LGPD (Lei nº 13.709/18):</b> Tratamento e proteção rigorosa de dados pessoais.
+                      {'\n'}• <b>Habilitação Técnica:</b> Apenas profissionais com ART (CREA) ou RRT (CAU).
+                    </p>
                   </div>
                 </div>
               )}
@@ -3821,11 +4191,50 @@ export default function App() {
                       </button>
                     </div>
                   </div>
-                  <button className="btn lg block" type="submit">Criar conta</button>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12.5, color: 'var(--text-2)', cursor: 'pointer', margin: '14px 0 16px', lineHeight: 1.45 }}>
+                    <input
+                      type="checkbox"
+                      checked={signupConsent}
+                      onChange={e => setSignupConsent(e.target.checked)}
+                      style={{ marginTop: 2, accentColor: 'var(--accent)', width: 16, height: 16, cursor: 'pointer' }}
+                    />
+                    <span>
+                      Declaro que li e concordo com os{' '}
+                      <button type="button" className="link" onClick={() => { closeAuth(); setActiveScreen('termos'); }}>Termos de Uso</button>
+                      {' '}e com a{' '}
+                      <button type="button" className="link" onClick={() => { closeAuth(); setActiveScreen('privacidade'); }}>Política de Privacidade (LGPD - Lei 13.709/2018)</button>.
+                    </span>
+                  </label>
+                  <button className="btn lg block" type="submit" disabled={!signupConsent}>Criar conta</button>
                 </form>
                 <p className="auth-foot">Já tem conta? <button className="link" onClick={() => openAuth('login')}>Entrar</button></p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ----------------- BANNER LGPD / PRIVACIDADE E COOKIES ----------------- */}
+      {!cookieConsent && (
+        <div className="lgpd-banner" role="dialog" aria-label="Aviso de Privacidade e Cookies">
+          <div className="lgpd-banner-content">
+            <div className="lgpd-banner-icon">
+              <Svg k="shield" s={20} />
+            </div>
+            <div className="lgpd-banner-text">
+              <b>Sua privacidade e segurança na obra:</b> Tratamos dados pessoais e registros em estrita conformidade com a <b>LGPD (Lei nº 13.709/2018)</b> e o <b>Marco Civil da Internet (Lei nº 12.965/2014)</b> para intermediar orçamentos, cotações e contratos protegidos. Conheça nossos{' '}
+              <button type="button" className="link" onClick={() => setActiveScreen('termos')}>Termos de Uso</button>
+              {' '}e nossa{' '}
+              <button type="button" className="link" onClick={() => setActiveScreen('privacidade')}>Política de Privacidade</button>.
+            </div>
+          </div>
+          <div className="lgpd-banner-actions">
+            <button className="ghost sm" type="button" onClick={() => setActiveScreen('privacidade')}>
+              Preferências
+            </button>
+            <button className="btn sm" type="button" onClick={acceptLgpdConsent}>
+              Aceitar e continuar
+            </button>
           </div>
         </div>
       )}

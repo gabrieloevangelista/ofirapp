@@ -42,7 +42,7 @@ export function filterSummary(f: Filters, n: number) {
 
 // ---- simulador ----
 export const STANDARDS = ['Médio', 'Médio-Alto', 'Alto Padrão', 'Alto Luxo', 'Ultra Luxo'];
-export const BASE_M2 = [2900, 4200, 6200, 8800, 13500]; // R$/m² por padrão, valores de referência
+export const BASE_M2 = [2900, 4200, 6200, 8800, 14500]; // R$/m² por padrão, valores médios de referência
 export function simulate(area: number, sysKey: string, std: number) {
   const s = SYSTEMS.find(x => x.k === sysKey) || SYSTEMS[0];
   const stdIdx = Math.min(BASE_M2.length - 1, Math.max(0, std));
@@ -53,8 +53,12 @@ export function simulate(area: number, sysKey: string, std: number) {
     ? (3 + area / 25)
     : (3 + 500 / 25 + Math.pow(area - 500, 0.44) * 2.2);
   const months = Math.max(2, Math.min(60, Math.round(effectiveMonths * s.p * (1 + stdIdx * 0.08))));
-  const m2Min = Math.round(m2Base * 0.9);
-  const m2Max = Math.round(m2Base * 1.12);
+
+  // Faixas de custo por m² de mercado:
+  // Ultra Luxo (stdIdx === 4): R$ 9.000 a R$ 20.000+/m² com valor médio de R$ 14.500/m²
+  const m2Min = stdIdx === 4 ? Math.round(9000 * s.c) : Math.round(m2Base * 0.9);
+  const m2Max = stdIdx === 4 ? Math.round(20000 * s.c) : Math.round(m2Base * 1.12);
+
   const fmtM2 = (v: number) => 'R$ ' + v.toLocaleString('pt-BR');
   const fmtFull = (v: number) => {
     if (v >= 1e6) {
@@ -64,7 +68,7 @@ export function simulate(area: number, sysKey: string, std: number) {
     return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
   };
   return {
-    cost: fmtFull(mid * 0.9) + ' a ' + fmtFull(mid * 1.12),
+    cost: fmtFull(area * m2Min) + ' a ' + fmtFull(area * m2Max),
     time: months + ' meses',
     m2: fmtM2(m2Min) + ' a ' + fmtM2(m2Max) + ' / m²',
     m2Val: fmtM2(Math.round(m2Base)) + ' / m²',

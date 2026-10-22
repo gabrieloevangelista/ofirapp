@@ -1214,7 +1214,7 @@ footer{margin-top:96px;border-top:1px solid var(--line);padding:48px var(--g) 12
     <div><h5>Para quem constrói</h5><a href="#sistemas">Sistemas construtivos</a><a href="#etapas">Etapas da obra</a><a href="#simulador">Simulador</a><a href="#projetos">Projetos prontos</a></div>
     <div><h5>Para fornecedores</h5><a href="#">Cadastrar empresa</a><a href="#">Planos</a><a href="#">Central do fornecedor</a></div>
     <div><h5>Conteúdo</h5><a href="#">Guia da obra</a><a href="#">Comparativo de sistemas</a><a href="#">Financiamento</a></div>
-    <div><h5>Empresa</h5><a href="#">Sobre</a><a href="#">Termos</a><a href="#">Privacidade</a></div>
+    <div><h5>Empresa & Legal</h5><a href="#">Sobre a OFIR</a><a href="#">Termos de Uso</a><a href="#">Privacidade (LGPD)</a><a href="#">Conformidade</a></div>
   </div>
 </footer>
 
@@ -1361,10 +1361,12 @@ const STAGES=[
 // custo: multiplicador sobre o custo base por m². prazo: multiplicador sobre o prazo base. Valores de protótipo.
 const SYSTEMS=[
   {k:'alvenaria',n:'Alvenaria convencional',d:'Tijolo ou bloco cerâmico com estrutura de concreto armado.',t:['Mão de obra fácil de achar','Reformas simples'],c:1,p:1,f:1240,m:'m1'},
+  {k:'bloco',n:'Alvenaria estrutural',d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.',t:['Menos concreto','Ideal para repetição'],c:.94,p:.85,f:420,m:'m4'},
   {k:'eps',n:'Painéis EPS monolíticos',d:'Painéis de isopor com malha de aço, revestidos com argamassa projetada.',t:['Isolamento térmico','Obra mais limpa'],c:.92,p:.65,f:186,m:'m9'},
   {k:'steel',n:'Steel frame',d:'Perfis de aço galvanizado com fechamento em placas, montagem a seco.',t:['Montagem a seco','Estrutura leve'],c:1.08,p:.6,f:312,m:'m3'},
   {k:'wood',n:'Wood frame',d:'Estrutura de madeira tratada de reflorestamento com placas OSB.',t:['Montagem a seco','Baixa geração de resíduo'],c:1.05,p:.62,f:94,m:'m6'},
-  {k:'bloco',n:'Alvenaria estrutural',d:'Blocos que funcionam como estrutura, dispensando vigas e pilares.',t:['Menos concreto','Ideal para repetição'],c:.94,p:.85,f:420,m:'m4'},
+  {k:'metalica',n:'Estrutura metálica',d:'Perfis de aço estrutural para grandes vãos, rapidez executiva e alta precisão.',t:['Grandes vãos','Rapidez na montagem','Alta precisão'],c:1.10,p:.45,f:215,m:'m3'},
+  {k:'acabada',n:'Casa acabada (Turnkey)',d:'Obra completa entregue pronta para morar, integrando todos os sistemas construtivos.',t:['Chave na mão','Alto padrão','Solução completa'],c:1.20,p:.60,f:340,m:'m2'},
   {k:'concretopvc',n:'Concreto PVC',d:'Fôrmas de PVC preenchidas com concreto, que ficam como acabamento.',t:['Parede já acabada','Fácil limpeza'],c:1.02,p:.7,f:58,m:'m8'},
   {k:'premoldado',n:'Pré-moldado',d:'Peças de concreto fabricadas fora e montadas na obra com guindaste.',t:['Galpões e grandes vãos','Montagem rápida'],c:.97,p:.7,f:136,m:'m5'}
 ];
@@ -1536,15 +1538,17 @@ document.getElementById('selbar-go').onclick=()=>{
 };
 
 // simulador
-const BASE_M2=[2900,4200,6000]; // R$/m² por padrão, valores de protótipo
+const BASE_M2=[2900,4200,6200,8800,14500]; // R$/m² por padrão, valores médios de referência
 const sArea=document.getElementById('s-area'),sSys=document.getElementById('s-sys'),sStd=document.getElementById('s-std');
 sSys.innerHTML=SYSTEMS.map(s=>`<option value="${s.k}">${s.n}</option>`).join('');
 let std=1;
 function calc(){
   const a=+sArea.value,s=SYSTEMS.find(x=>x.k===sSys.value);
   document.getElementById('s-area-v').textContent=a+' m²';
-  const mid=a*BASE_M2[std]*s.c;
-  document.getElementById('r-cost').textContent=BRL(mid*.9)+' a '+BRL(mid*1.12);
+  const m2Base=BASE_M2[std]*s.c;
+  const m2Min=std===4?Math.round(9000*s.c):Math.round(m2Base*.9);
+  const m2Max=std===4?Math.round(20000*s.c):Math.round(m2Base*1.12);
+  document.getElementById('r-cost').textContent=BRL(a*m2Min)+' a '+BRL(a*m2Max);
   const months=Math.max(2,Math.round((3+a/22)*s.p*(1+std*.12)));
   document.getElementById('r-time').textContent=months+' meses';
 }
