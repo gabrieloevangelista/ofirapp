@@ -48,8 +48,7 @@ const LogoIcon = () => (
   </i>
 );
 
-/* ---------- Types ---------- */
-type ScreenView = null | 'obra' | 'msgs' | 'orc' | 'checkout' | 'paid' | 'hist' | 'enderecos' | 'perfil' | 'config' | 'cotacoes' | 'analise-projeto' | 'notificacoes' | `cotacao:${string}` | `chat:${string}` | `ped:${string}`;
+type ScreenView = null | 'obra' | 'msgs' | 'orc' | 'checkout' | 'paid' | 'hist' | 'enderecos' | 'perfil' | 'config' | 'cotacoes' | 'analise-projeto' | 'notificacoes' | 'termos' | 'privacidade' | 'conformidade' | 'sobre' | `cotacao:${string}` | `chat:${string}` | `ped:${string}`;
 
 /* ---------- Componente: Relógio / SLA de 72 horas para Cotações ---------- */
 function WebQuoteCountdown({ conv }: { conv: Conversation }) {
@@ -817,8 +816,8 @@ export default function App() {
           </a>
           <span className="sep"></span>
           <a href="#simulador" onClick={() => setMobileTabsOpen(false)}>Simulador <span className="tag">Novo</span></a>
-          <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); }}>Financiamento</a>
-          <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); }}>Guia da obra</a>
+          <a href="#simulador" onClick={() => setMobileTabsOpen(false)}>Financiamento</a>
+          <a href="#etapas" onClick={() => setMobileTabsOpen(false)}>Guia da obra</a>
           <a href="#fornecedor" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); setCurrentPortal('supplier'); window.location.hash = 'fornecedor'; }}>
             Área do Fornecedor <span className="tag" style={{ background: '#1d4ed8', color: '#fff', fontWeight: 700 }}>B2B</span>
           </a>
@@ -1849,15 +1848,15 @@ export default function App() {
           </div>
           <div>
             <h5>Para fornecedores</h5>
-            <a href="#" onClick={() => openAuth('signup')}>Cadastrar empresa</a>
-            <a href="#">Planos</a>
-            <a href="#">Central do fornecedor</a>
+            <a href="#" onClick={e => { e.preventDefault(); openAuth('signup'); }}>Cadastrar empresa</a>
+            <a href="#fornecedor" onClick={e => { e.preventDefault(); setCurrentPortal('supplier'); window.location.hash = 'fornecedor'; }}>Portal do Fornecedor (B2B)</a>
+            <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('conformidade'); }}>Custódia e Repasses</a>
           </div>
           <div>
             <h5>Conteúdo</h5>
-            <a href="#">Guia da obra</a>
-            <a href="#">Comparativo de sistemas</a>
-            <a href="#">Financiamento</a>
+            <a href="#etapas">Guia da obra</a>
+            <a href="#sistemas">Comparativo de sistemas</a>
+            <a href="#simulador">Simulador e Financiamento</a>
           </div>
           <div>
             <h5>Empresa & Legal</h5>
@@ -3202,8 +3201,8 @@ export default function App() {
                   </div>
 
                   <div className="list" style={{ marginTop: 14 }}>
-                    <button><span>Central de ajuda e suporte</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg></button>
-                    <button><span>Como funciona o pagamento protegido</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg></button>
+                    <button type="button" onClick={() => setActiveScreen('sobre')}><span>Central de ajuda e suporte</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg></button>
+                    <button type="button" onClick={() => setActiveScreen('conformidade')}><span>Como funciona o pagamento protegido</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg></button>
                   </div>
                   {user ? (
                     <div className="list" style={{ marginTop: 8 }}>

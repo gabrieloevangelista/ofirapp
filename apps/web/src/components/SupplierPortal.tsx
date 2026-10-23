@@ -47,7 +47,7 @@ export interface PaymentMilestone {
 
 export type PaymentMethodKey = 'pix_custodia' | 'boleto_parcelado' | 'cartao_12x' | 'faturamento_28ddl';
 
-export const PAYMENT_METHODS: { key: PaymentMethodKey; label: string; desc: string; badge: string; icon: string }[] = [
+const PAYMENT_METHODS: { key: PaymentMethodKey; label: string; desc: string; badge: string; icon: string }[] = [
   {
     key: 'pix_custodia',
     label: 'PIX via Custódia OFIR',
