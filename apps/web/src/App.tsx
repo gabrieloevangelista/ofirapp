@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   BRL, BRLc, ICONS, PLANS, STAGES, STAGE_COUNT, SUPPLIERS, SYSTEMS, STANDARDS,
   catOf, filterSuppliers, filterSummary, getSupplierDetails, initials, rate,
@@ -206,7 +206,7 @@ export default function App() {
     user, signOut, openAuth, authOpen, authView, closeAuth, signIn, requireAuth, updateUser,
     theme, toggleTheme,
     filters, setFilters, viewMode, setViewMode,
-    addresses, addrSel, selectAddress, addAddress, updateAddress, deleteAddress,
+    addresses, addrSel, selectAddress, addAddress, updateAddress, deleteAddress, setAddress,
     orcName, setOrcName, addItem, setQty, removeItem, clearItems,
     conversations, proposals, sent, sendMessage, addFile, acceptProposal, startQuote,
     quotes, requestQuotes, orders, checkout, lastCheckout, confirmOrder,
@@ -346,6 +346,13 @@ export default function App() {
   const [selSet, setSelSet] = useState<Set<string>>(new Set());
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [showSignupPass, setShowSignupPass] = useState(false);
+  const [signupRole, setSignupRole] = useState<'owner' | 'supplier'>('owner');
+  const [signupName, setSignupName] = useState('Eduardo Castro');
+  const [signupEmail, setSignupEmail] = useState('eduardo@ofir.com.br');
+  const [signupPhone, setSignupPhone] = useState('(11) 98765-4321');
+  const [signupPass, setSignupPass] = useState('12345678');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [payMethod, setPayMethod] = useState<'pix' | 'card' | 'boleto'>('pix');
 
   const handleNotificationClick = (notif: AppNotification) => {
@@ -429,12 +436,25 @@ export default function App() {
     email: user?.email || 'eduardo@ofir.com.br',
     phone: user?.phone || '(11) 98765-4321',
     cpfCnpj: user?.cpfCnpj || '123.456.789-00',
+    cep: user?.cep || '12940-000',
+    street: user?.street || 'Av. Lucas Nogueira Garcez',
+    num: user?.num || '1250',
+    comp: user?.comp || '',
+    hood: user?.hood || 'Jardim do Lago',
     city: user?.city || 'Atibaia',
     uf: user?.uf || 'SP',
     role: user?.role || 'owner',
     bio: user?.bio || 'Construindo casa térrea de 420m² em Atibaia utilizando sistemas modernos e sustentáveis.',
     avatar: user?.avatar || ''
   });
+
+  const [profileCepLoading, setProfileCepLoading] = useState(false);
+  const [profileCepStatus, setProfileCepStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [profileCepFeedback, setProfileCepFeedback] = useState('');
+  const [profileCitiesList, setProfileCitiesList] = useState<string[]>(() => {
+    return TOP_CITIES_BY_UF[user?.uf || 'SP'] || [];
+  });
+  const [profileLoadingCities, setProfileLoadingCities] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -443,6 +463,11 @@ export default function App() {
         email: user.email || '',
         phone: user.phone || '(11) 98765-4321',
         cpfCnpj: user.cpfCnpj || '123.456.789-00',
+        cep: user.cep || '12940-000',
+        street: user.street || 'Av. Lucas Nogueira Garcez',
+        num: user.num || '1250',
+        comp: user.comp || '',
+        hood: user.hood || 'Jardim do Lago',
         city: user.city || 'Atibaia',
         uf: user.uf || 'SP',
         role: user.role || 'owner',
@@ -451,6 +476,136 @@ export default function App() {
       });
     }
   }, [user]);
+
+  // Carrega cidades da UF do perfil de forma assíncrona
+  useEffect(() => {
+    let active = true;
+    const loadCities = async () => {
+      if (!userForm.uf) {
+        setProfileCitiesList([]);
+        return;
+      }
+      const staticList = TOP_CITIES_BY_UF[userForm.uf] || [];
+      setProfileCitiesList(staticList);
+      setProfileLoadingCities(true);
+      try {
+        const remote = await fetchCitiesByUf(userForm.uf);
+        if (active && remote.length > 0) {
+          setProfileCitiesList(remote);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar cidades da UF:', err);
+      } finally {
+        if (active) setProfileLoadingCities(false);
+      }
+    };
+    loadCities();
+    return () => { active = false; };
+  }, [userForm.uf]);
+
+  useEffect(() => {
+    if (userForm.city && !profileCitiesList.includes(userForm.city)) {
+      setProfileCitiesList(prev => [userForm.city, ...prev]);
+    }
+  }, [userForm.city, profileCitiesList]);
+
+  // Consulta do CEP no perfil via ViaCEP
+  const handleProfileCepLookup = async (digits: string) => {
+    if (digits.length === 8) {
+      setProfileCepLoading(true);
+      setProfileCepStatus('loading');
+      setProfileCepFeedback('Buscando endereço...');
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+        const data = await res.json();
+        if (!data.erro) {
+          const newStreet = data.logradouro || '';
+          const newHood = data.bairro || '';
+          const newCity = data.localidade || '';
+          const newUf = data.uf || '';
+
+          setUserForm(prev => ({
+            ...prev,
+            street: newStreet || prev.street,
+            hood: newHood || prev.hood,
+            city: newCity || prev.city,
+            uf: newUf || prev.uf
+          }));
+
+          setProfileCepStatus('success');
+          setProfileCepFeedback(`${newCity}/${newUf} localizado com sucesso`);
+
+          setTimeout(() => {
+            if (newStreet) {
+              document.getElementById('profile-num')?.focus();
+            } else {
+              document.getElementById('profile-street')?.focus();
+            }
+          }, 60);
+        } else {
+          setProfileCepStatus('error');
+          setProfileCepFeedback('CEP não encontrado. Preencha os campos abaixo.');
+        }
+      } catch (err) {
+        console.error(err);
+        setProfileCepStatus('error');
+        setProfileCepFeedback('Não foi possível consultar o CEP.');
+      } finally {
+        setProfileCepLoading(false);
+      }
+    } else {
+      setProfileCepStatus('idle');
+      setProfileCepFeedback('');
+    }
+  };
+
+  const handleProfileCepChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    const masked = digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+    setUserForm(prev => ({ ...prev, cep: masked }));
+    if (digits.length === 8) {
+      handleProfileCepLookup(digits);
+    } else {
+      setProfileCepStatus('idle');
+      setProfileCepFeedback('');
+    }
+  };
+
+  const handlePhoneChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    let masked = digits;
+    if (digits.length > 6) {
+      masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    } else if (digits.length > 2) {
+      masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    }
+    setUserForm(prev => ({ ...prev, phone: masked }));
+  };
+
+  const handleCpfCnpjChange = (raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 14);
+    let masked = digits;
+    if (digits.length <= 11) {
+      if (digits.length > 9) {
+        masked = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
+      } else if (digits.length > 6) {
+        masked = `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
+      } else if (digits.length > 3) {
+        masked = `${digits.slice(0, 3)}.${digits.slice(3)}`;
+      }
+    } else {
+      if (digits.length > 12) {
+        masked = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+      } else if (digits.length > 8) {
+        masked = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+      } else if (digits.length > 5) {
+        masked = `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+      } else if (digits.length > 2) {
+        masked = `${digits.slice(0, 2)}.${digits.slice(2)}`;
+      }
+    }
+    setUserForm(prev => ({ ...prev, cpfCnpj: masked }));
+  };
 
   const handleAvatarFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -469,6 +624,87 @@ export default function App() {
   useEffect(() => {
     setObraForm({ name: obra.name, area: obra.area, system: obra.system, city: obra.city, uf: obra.uf });
   }, [obra]);
+
+  const [obraCitiesList, setObraCitiesList] = useState<string[]>(() => {
+    return TOP_CITIES_BY_UF[obra.uf || 'SP'] || [];
+  });
+  const [obraLoadingCities, setObraLoadingCities] = useState(false);
+  const [obraCep, setObraCep] = useState('');
+  const [obraCepStatus, setObraCepStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [obraCepFeedback, setObraCepFeedback] = useState('');
+
+  const handleObraCepLookup = async (rawCep: string) => {
+    const cleaned = rawCep.replace(/\D/g, '').slice(0, 8);
+    const formatted = cleaned.length > 5 ? `${cleaned.slice(0, 5)}-${cleaned.slice(5)}` : cleaned;
+    setObraCep(formatted);
+
+    if (cleaned.length !== 8) {
+      setObraCepStatus('idle');
+      setObraCepFeedback('');
+      return;
+    }
+
+    setObraCepStatus('loading');
+    setObraCepFeedback('Buscando localização da obra...');
+
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const data = await res.json();
+
+      if (data.erro) {
+        setObraCepStatus('error');
+        setObraCepFeedback('CEP não encontrado.');
+        return;
+      }
+
+      setObraCepStatus('success');
+      setObraCepFeedback(`${data.localidade || ''}/${data.uf || ''}`);
+
+      setObraForm(prev => ({
+        ...prev,
+        city: data.localidade || prev.city,
+        uf: data.uf || prev.uf
+      }));
+    } catch {
+      setObraCepStatus('error');
+      setObraCepFeedback('Erro ao consultar CEP.');
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    const loadCities = async () => {
+      if (!obraForm.uf) {
+        setObraCitiesList([]);
+        return;
+      }
+      const staticList = TOP_CITIES_BY_UF[obraForm.uf] || [];
+      setObraCitiesList(staticList);
+      setObraLoadingCities(true);
+      try {
+        const remote = await fetchCitiesByUf(obraForm.uf);
+        if (active && remote.length > 0) {
+          setObraCitiesList(remote);
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar cidades da obra:', err);
+      } finally {
+        if (active) setObraLoadingCities(false);
+      }
+    };
+    loadCities();
+    return () => { active = false; };
+  }, [obraForm.uf]);
+
+  useEffect(() => {
+    if (obraForm.city && !obraCitiesList.includes(obraForm.city)) {
+      setObraCitiesList(prev => [obraForm.city, ...prev]);
+    }
+  }, [obraForm.city, obraCitiesList]);
+
+  const obraCityOptions = useMemo(() => {
+    return obraCitiesList.map(c => ({ value: c, label: c }));
+  }, [obraCitiesList]);
 
   // Obra dynamic calculation
   const obraProgress = calcObraProgress(obra.stages);
@@ -600,9 +836,24 @@ export default function App() {
     });
   };
 
-  const handleHeroSearch = (e: React.FormEvent) => {
+  const handleHeroSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFilters({ city: heroCity.trim(), stage: 'all', sys: 'all', seg: 'svc' });
+    let targetCity = heroCity.trim();
+    const cleanedCep = targetCity.replace(/\D/g, '');
+    if (cleanedCep.length === 8) {
+      try {
+        const res = await fetch(`https://viacep.com.br/ws/${cleanedCep}/json/`);
+        const data = await res.json();
+        if (data.localidade) {
+          targetCity = data.localidade;
+          setHeroCity(`${data.localidade} - ${data.uf}`);
+          setAddress({ cep: cleanedCep, city: data.localidade });
+        }
+      } catch {
+        // Fallback silencioso
+      }
+    }
+    setFilters({ city: targetCity, stage: 'all', sys: 'all', seg: 'svc' });
     const a = parseInt(heroArea.replace(/\D/g, ''), 10);
     if (!isNaN(a) && a >= 80 && a <= 20000) {
       setSimArea(a);
@@ -737,6 +988,11 @@ export default function App() {
   }));
 
   const cityOptions = citiesList.map(c => ({
+    value: c,
+    label: c,
+  }));
+
+  const profileCityOptions = profileCitiesList.map(c => ({
     value: c,
     label: c,
   }));
@@ -1897,7 +2153,7 @@ export default function App() {
       {activeScreen && (
         <div className="screen" id="screen" style={{ display: 'flex' }}>
           <div className="screen-scrim" onClick={() => setActiveScreen(null)}></div>
-          <div className={`screen-panel ${['analise-projeto', 'notificacoes', 'termos', 'privacidade', 'conformidade', 'sobre'].includes(activeScreen || '') ? 'wide' : ''}`} id="screen-panel">
+          <div className={`screen-panel ${['analise-projeto', 'notificacoes', 'termos', 'privacidade', 'conformidade', 'sobre', 'perfil', 'enderecos', 'checkout', 'obra'].includes(activeScreen || '') ? 'wide' : ''}`} id="screen-panel">
             <header className="screen-head">
               {activeScreen?.startsWith('chat:') || activeScreen?.startsWith('cotacao:') || activeScreen?.startsWith('ped:') || activeScreen === 'checkout' || activeScreen === 'paid' ? (
                 <button className="icon-btn" aria-label="Voltar" onClick={() => {
@@ -1987,13 +2243,74 @@ export default function App() {
                           searchable={false}
                         />
                         <div className="inp">
-                          <label>Cidade / UF</label>
-                          <input value={`${obraForm.city}, ${obraForm.uf}`} onChange={e => {
-                            const parts = e.target.value.split(',');
-                            setObraForm({ ...obraForm, city: parts[0]?.trim() || '', uf: parts[1]?.trim() || obraForm.uf });
-                          }} />
+                          <label htmlFor="obra-cep">CEP da obra / terreno</label>
+                          <div className="cep-input-wrap">
+                            <input
+                              id="obra-cep"
+                              value={obraCep}
+                              onChange={e => handleObraCepLookup(e.target.value)}
+                              placeholder="00000-000"
+                              maxLength={9}
+                              inputMode="numeric"
+                              autoComplete="postal-code"
+                            />
+                            {obraCepStatus === 'loading' && (
+                              <span className="cep-status-icon"><span className="cep-spin" /></span>
+                            )}
+                            {obraCepStatus === 'success' && (
+                              <span className="cep-status-icon ok" title="Localidade encontrada">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12l5 5 9-10" /></svg>
+                              </span>
+                            )}
+                            {obraCepStatus === 'error' && (
+                              <span className="cep-status-icon err" title="CEP não encontrado">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                              </span>
+                            )}
+                          </div>
+                          {obraCepFeedback ? (
+                            <small className={`cep-info ${obraCepStatus === 'success' ? 'ok' : obraCepStatus === 'error' ? 'err' : ''}`}>
+                              {obraCepFeedback}
+                            </small>
+                          ) : (
+                            <small className="hint">Preenche estado e cidade automaticamente</small>
+                          )}
                         </div>
-                        <div style={{ gridColumn: 'span 2', display: 'flex', gap: 8, marginTop: 4 }}>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 10 }}>
+                          <CustomSelect
+                            id="obra-uf"
+                            label="UF"
+                            value={obraForm.uf}
+                            onChange={val => {
+                              setObraForm(prev => ({
+                                ...prev,
+                                uf: val,
+                                city: prev.uf !== val ? '' : prev.city
+                              }));
+                            }}
+                            options={ufOptions}
+                            placeholder="UF"
+                            searchPlaceholder="Buscar estado..."
+                            searchable={true}
+                            autoComplete="address-level1"
+                          />
+                          <CustomSelect
+                            id="obra-city"
+                            label="Cidade"
+                            value={obraForm.city}
+                            onChange={val => setObraForm(prev => ({ ...prev, city: val }))}
+                            options={obraCityOptions}
+                            placeholder={obraForm.uf ? 'Buscar ou selecionar cidade' : 'Selecione a UF'}
+                            searchPlaceholder="Buscar cidade..."
+                            loading={obraLoadingCities}
+                            disabled={!obraForm.uf && obraCityOptions.length === 0}
+                            allowCustomInput={true}
+                            searchable={true}
+                            autoComplete="address-level2"
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                           <button className="btn sm" type="submit">Salvar dados</button>
                           <button className="ghost sm" type="button" onClick={() => setEditingObra(false)}>Cancelar</button>
                         </div>
@@ -3047,98 +3364,250 @@ export default function App() {
                   </div>
 
                   {/* FORMULÁRIO DE CADASTRO COMPLETO DO USUÁRIO */}
-                  <p className="sec-label" style={{ marginTop: 20 }}>Cadastro completo</p>
-                  <form
-                    className="form-grid"
-                    onSubmit={e => {
-                      e.preventDefault();
-                      updateUser(userForm);
-                      toast('Cadastro salvo com sucesso!', 'Seus dados de perfil foram atualizados.');
-                    }}
-                  >
-                    <div className="inp c4">
-                      <label>Nome completo</label>
-                      <input
-                        value={userForm.name}
-                        onChange={e => setUserForm({ ...userForm, name: e.target.value })}
-                        placeholder="Seu nome"
-                        required
-                      />
-                    </div>
-                    <div className="inp c2">
-                      <label>Tipo de conta</label>
-                      <div className="lbl-chips">
+                  <div className="profile-form-box">
+                    <form
+                      onSubmit={e => {
+                        e.preventDefault();
+                        updateUser(userForm);
+                        // Se o usuário atualizou endereço no perfil, sincroniza o endereço principal também
+                        if (userForm.cep && userForm.city) {
+                          setAddress({ cep: userForm.cep, city: userForm.city });
+                        }
+                        toast('Cadastro salvo com sucesso!', 'Seus dados de perfil e localização foram atualizados.');
+                      }}
+                    >
+                      {/* Seletor de Tipo de Conta em Formato Segmentado Full-width */}
+                      <span className="profile-section-title">
+                        <Svg k="user" s={14} color="var(--accent)" /> Tipo de Conta na Plataforma
+                      </span>
+                      <div className="profile-role-switcher" role="radiogroup" aria-label="Tipo de conta">
                         <button
                           type="button"
-                          className={userForm.role === 'owner' ? 'on' : ''}
+                          role="radio"
+                          aria-checked={userForm.role === 'owner'}
+                          className={`profile-role-btn ${userForm.role === 'owner' ? 'active' : ''}`}
                           onClick={() => setUserForm({ ...userForm, role: 'owner' })}
                         >
-                          Proprietário
+                          <Svg k="home" s={18} color={userForm.role === 'owner' ? 'var(--accent)' : 'currentColor'} />
+                          <div>
+                            <strong>Proprietário da Obra</strong>
+                            <small>Construindo ou reformando</small>
+                          </div>
                         </button>
                         <button
                           type="button"
-                          className={userForm.role === 'supplier' ? 'on' : ''}
+                          role="radio"
+                          aria-checked={userForm.role === 'supplier'}
+                          className={`profile-role-btn ${userForm.role === 'supplier' ? 'active' : ''}`}
                           onClick={() => setUserForm({ ...userForm, role: 'supplier' })}
                         >
-                          Fornecedor
+                          <Svg k="building" s={18} color={userForm.role === 'supplier' ? 'var(--accent)' : 'currentColor'} />
+                          <div>
+                            <strong>Fornecedor Credenciado</strong>
+                            <small>Materiais e serviços B2B</small>
+                          </div>
                         </button>
                       </div>
-                    </div>
-                    <div className="inp c3">
-                      <label>E-mail</label>
-                      <input
-                        type="email"
-                        value={userForm.email}
-                        onChange={e => setUserForm({ ...userForm, email: e.target.value })}
-                        placeholder="seu@email.com"
-                        required
-                      />
-                    </div>
-                    <div className="inp c3">
-                      <label>Telefone / WhatsApp</label>
-                      <input
-                        value={userForm.phone}
-                        onChange={e => setUserForm({ ...userForm, phone: e.target.value })}
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                    <div className="inp c3">
-                      <label>CPF ou CNPJ</label>
-                      <input
-                        value={userForm.cpfCnpj}
-                        onChange={e => setUserForm({ ...userForm, cpfCnpj: e.target.value })}
-                        placeholder="000.000.000-00"
-                      />
-                    </div>
-                    <div className="inp c2">
-                      <label>Cidade</label>
-                      <input
-                        value={userForm.city}
-                        onChange={e => setUserForm({ ...userForm, city: e.target.value })}
-                        placeholder="Cidade"
-                      />
-                    </div>
-                    <div className="inp c1">
-                      <label>UF</label>
-                      <input
-                        value={userForm.uf}
-                        maxLength={2}
-                        onChange={e => setUserForm({ ...userForm, uf: e.target.value.toUpperCase() })}
-                        placeholder="UF"
-                      />
-                    </div>
-                    <div className="inp c6">
-                      <label>Sobre você / Sua obra</label>
-                      <input
-                        value={userForm.bio}
-                        onChange={e => setUserForm({ ...userForm, bio: e.target.value })}
-                        placeholder="Informações sobre a sua construção ou atuação"
-                      />
-                    </div>
-                    <div className="inp c6">
-                      <button className="btn lg block" type="submit">Salvar cadastro</button>
-                    </div>
-                  </form>
+
+                      {/* Seção 1: Dados Pessoais */}
+                      <span className="profile-section-title">
+                        <Svg k="doc" s={14} color="var(--accent)" /> Dados Pessoais
+                      </span>
+                      <div className="profile-grid">
+                        <div className="inp full">
+                          <label htmlFor="pf-name">Nome completo</label>
+                          <input
+                            id="pf-name"
+                            value={userForm.name}
+                            onChange={e => setUserForm({ ...userForm, name: e.target.value })}
+                            placeholder="Seu nome completo"
+                            required
+                            autoComplete="name"
+                          />
+                        </div>
+
+                        <div className="inp">
+                          <label htmlFor="pf-email">E-mail corporativo / pessoal</label>
+                          <input
+                            id="pf-email"
+                            type="email"
+                            value={userForm.email}
+                            onChange={e => setUserForm({ ...userForm, email: e.target.value })}
+                            placeholder="seu@email.com"
+                            required
+                            autoComplete="email"
+                          />
+                        </div>
+
+                        <div className="inp">
+                          <label htmlFor="pf-phone">Telefone / WhatsApp</label>
+                          <input
+                            id="pf-phone"
+                            value={userForm.phone}
+                            onChange={e => handlePhoneChange(e.target.value)}
+                            placeholder="(00) 00000-0000"
+                            maxLength={15}
+                            inputMode="tel"
+                            autoComplete="tel"
+                          />
+                        </div>
+
+                        <div className="inp full">
+                          <label htmlFor="pf-cpf">CPF ou CNPJ</label>
+                          <input
+                            id="pf-cpf"
+                            value={userForm.cpfCnpj}
+                            onChange={e => handleCpfCnpjChange(e.target.value)}
+                            placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                            maxLength={18}
+                            inputMode="numeric"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Seção 2: Localização & Endereço com Busca Automática por CEP */}
+                      <span className="profile-section-title">
+                        <Svg k="pin" s={14} color="var(--accent)" /> Localização & Endereço Principal
+                      </span>
+                      <div className="profile-grid">
+                        <div className="inp">
+                          <label htmlFor="pf-cep">CEP</label>
+                          <div className="cep-input-wrap">
+                            <input
+                              id="pf-cep"
+                              value={userForm.cep}
+                              onChange={e => handleProfileCepChange(e.target.value)}
+                              placeholder="00000-000"
+                              maxLength={9}
+                              inputMode="numeric"
+                              autoComplete="postal-code"
+                            />
+                            {profileCepLoading && (
+                              <span className="cep-status-icon">
+                                <span className="cep-spin" />
+                              </span>
+                            )}
+                            {profileCepStatus === 'success' && (
+                              <span className="cep-status-icon ok" title="Endereço localizado">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12l5 5 9-10" /></svg>
+                              </span>
+                            )}
+                            {profileCepStatus === 'error' && (
+                              <span className="cep-status-icon err" title="CEP não encontrado">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 6l12 12M18 6 6 18" /></svg>
+                              </span>
+                            )}
+                          </div>
+                          {profileCepFeedback ? (
+                            <small className={`cep-info ${profileCepStatus === 'success' ? 'ok' : profileCepStatus === 'error' ? 'err' : ''}`}>
+                              {profileCepFeedback}
+                            </small>
+                          ) : (
+                            <small className="hint">Preenche logradouro e cidade automaticamente</small>
+                          )}
+                        </div>
+
+                        <div className="inp">
+                          <label htmlFor="profile-num">Número</label>
+                          <input
+                            id="profile-num"
+                            value={userForm.num}
+                            onChange={e => setUserForm({ ...userForm, num: e.target.value })}
+                            placeholder="Ex: 120 ou S/N"
+                            autoComplete="address-line2"
+                          />
+                        </div>
+
+                        <div className="inp full">
+                          <label htmlFor="profile-street">Rua / Logradouro</label>
+                          <input
+                            id="profile-street"
+                            value={userForm.street}
+                            onChange={e => setUserForm({ ...userForm, street: e.target.value })}
+                            placeholder="Ex: Av. Paulista, Rua das Flores"
+                            autoComplete="address-line1"
+                          />
+                        </div>
+
+                        <div className="inp">
+                          <label htmlFor="pf-hood">Bairro</label>
+                          <input
+                            id="pf-hood"
+                            value={userForm.hood}
+                            onChange={e => setUserForm({ ...userForm, hood: e.target.value })}
+                            placeholder="Ex: Jardim do Lago, Centro"
+                            autoComplete="address-level3"
+                          />
+                        </div>
+
+                        <div className="inp">
+                          <label htmlFor="pf-comp">Complemento (opcional)</label>
+                          <input
+                            id="pf-comp"
+                            value={userForm.comp}
+                            onChange={e => setUserForm({ ...userForm, comp: e.target.value })}
+                            placeholder="Ex: Bloco A, Casa 2, Lote 14"
+                            autoComplete="address-line3"
+                          />
+                        </div>
+
+                        <CustomSelect
+                          id="pf-uf"
+                          label="Estado (UF)"
+                          value={userForm.uf}
+                          onChange={val => {
+                            setUserForm(prev => ({
+                              ...prev,
+                              uf: val,
+                              city: prev.uf !== val ? '' : prev.city
+                            }));
+                          }}
+                          options={ufOptions}
+                          placeholder="Selecione a UF"
+                          searchPlaceholder="Buscar estado..."
+                          autoComplete="address-level1"
+                          required
+                        />
+
+                        <CustomSelect
+                          id="pf-city"
+                          label="Cidade"
+                          value={userForm.city}
+                          onChange={val => setUserForm(prev => ({ ...prev, city: val }))}
+                          options={profileCityOptions}
+                          placeholder={userForm.uf ? 'Buscar ou selecionar cidade' : 'Selecione primeiro a UF'}
+                          searchPlaceholder="Digite o nome da cidade..."
+                          disabled={!userForm.uf && profileCityOptions.length === 0}
+                          loading={profileLoadingCities}
+                          allowCustomInput={true}
+                          autoComplete="address-level2"
+                          required
+                        />
+                      </div>
+
+                      {/* Seção 3: Informações Sobre a Obra / Atuação */}
+                      <span className="profile-section-title">
+                        <Svg k="orc" s={14} color="var(--accent)" /> Sobre Você ou Sua Obra
+                      </span>
+                      <div className="profile-grid">
+                        <div className="inp full">
+                          <textarea
+                            className="profile-textarea"
+                            value={userForm.bio}
+                            onChange={e => setUserForm({ ...userForm, bio: e.target.value })}
+                            placeholder="Descreva detalhes sobre sua construção, metragem, sistema construtivo preferido ou sua atuação técnica no mercado..."
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="inp full" style={{ marginTop: 8 }}>
+                          <button className="btn lg block" type="submit" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 46 }}>
+                            <Svg k="check" s={16} /> Salvar dados cadastrais
+                          </button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
 
                   {/* Acessos Rápidos */}
                   <p className="sec-label" style={{ marginTop: 24 }}>Minha conta e compras</p>
@@ -4162,21 +4631,79 @@ export default function App() {
               <div className="auth-view">
                 <h2 className="display">Criar conta</h2>
                 <div className="role" id="role">
-                  <button type="button" className="on"><b>Vou construir</b><span>Busco fornecedores para minha obra</span></button>
-                  <button type="button"><b>Sou fornecedor</b><span>Quero receber pedidos de orçamento</span></button>
+                  <button
+                    type="button"
+                    className={signupRole === 'owner' ? 'on' : ''}
+                    onClick={() => setSignupRole('owner')}
+                  >
+                    <b>Vou construir</b>
+                    <span>Busco fornecedores para minha obra</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={signupRole === 'supplier' ? 'on' : ''}
+                    onClick={() => setSignupRole('supplier')}
+                  >
+                    <b>Sou fornecedor</b>
+                    <span>Quero receber pedidos de orçamento</span>
+                  </button>
                 </div>
                 <div className="or">seus dados</div>
                 <form onSubmit={e => {
                   e.preventDefault();
-                  signIn({ name: 'Eduardo Castro', email: 'eduardo@ofir.com.br', role: 'owner' });
+                  signIn({ name: signupName, email: signupEmail, phone: signupPhone, role: signupRole });
+                  toast('Conta criada com sucesso!', `Bem-vindo à OFIR como ${signupRole === 'supplier' ? 'fornecedor parceiro' : 'proprietário da obra'}.`);
                 }}>
-                  <div className="inp"><label>Nome completo</label><input placeholder="Como devemos te chamar" defaultValue="Eduardo Castro" /></div>
-                  <div className="inp"><label>E-mail</label><input type="email" placeholder="voce@email.com" defaultValue="eduardo@ofir.com.br" /></div>
-                  <div className="inp"><label>WhatsApp</label><input type="tel" placeholder="(11) 90000-0000" defaultValue="(11) 98765-4321" /></div>
+                  <div className="inp">
+                    <label>Nome completo</label>
+                    <input
+                      placeholder="Como devemos te chamar"
+                      value={signupName}
+                      onChange={e => setSignupName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="inp">
+                    <label>E-mail</label>
+                    <input
+                      type="email"
+                      placeholder="voce@email.com"
+                      value={signupEmail}
+                      onChange={e => setSignupEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="inp">
+                    <label>WhatsApp</label>
+                    <input
+                      type="tel"
+                      placeholder="(11) 90000-0000"
+                      value={signupPhone}
+                      onChange={e => {
+                        const raw = e.target.value;
+                        const digits = raw.replace(/\D/g, '').slice(0, 11);
+                        let masked = digits;
+                        if (digits.length > 6) {
+                          masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+                        } else if (digits.length > 2) {
+                          masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                        }
+                        setSignupPhone(masked);
+                      }}
+                      maxLength={15}
+                      required
+                    />
+                  </div>
                   <div className="inp">
                     <label>Senha</label>
                     <div className="pw">
-                      <input type={showSignupPass ? 'text' : 'password'} placeholder="Mínimo de 8 caracteres" defaultValue="12345678" />
+                      <input
+                        type={showSignupPass ? 'text' : 'password'}
+                        placeholder="Mínimo de 8 caracteres"
+                        value={signupPass}
+                        onChange={e => setSignupPass(e.target.value)}
+                        required
+                      />
                       <button type="button" className="eye" aria-label="Mostrar senha" onClick={() => setShowSignupPass(!showSignupPass)}>
                         {showSignupPass ? (
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
@@ -4203,6 +4730,54 @@ export default function App() {
                   <button className="btn lg block" type="submit" disabled={!signupConsent}>Criar conta</button>
                 </form>
                 <p className="auth-foot">Já tem conta? <button className="link" onClick={() => openAuth('login')}>Entrar</button></p>
+              </div>
+            )}
+
+            {authView === 'forgot' && (
+              <div className="auth-view">
+                <h2 className="display" id="auth-title">Recuperar senha</h2>
+                <p className="auth-sub">Digite seu e-mail cadastrado e enviaremos um link de redefinição imediato.</p>
+                <form onSubmit={e => {
+                  e.preventDefault();
+                  if (!forgotEmail.trim()) return;
+                  setForgotLoading(true);
+                  setTimeout(() => {
+                    setForgotLoading(false);
+                    openAuth('sent');
+                  }, 600);
+                }}>
+                  <div className="inp">
+                    <label htmlFor="auth-forgot-email">E-mail</label>
+                    <input
+                      id="auth-forgot-email"
+                      type="email"
+                      placeholder="voce@email.com"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      required
+                      autoComplete="email"
+                    />
+                  </div>
+                  <button className="btn lg block" type="submit" disabled={forgotLoading || !forgotEmail.trim()}>
+                    {forgotLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                  </button>
+                </form>
+                <p className="auth-foot">Lembrou da senha? <button type="button" className="link" onClick={() => openAuth('login')}>Voltar ao login</button></p>
+              </div>
+            )}
+
+            {authView === 'sent' && (
+              <div className="auth-view" style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(31,122,85,.12)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ok)', marginBottom: 12 }}>
+                  <Svg k="check" s={28} sw={2.5} color="var(--ok)" />
+                </div>
+                <h2 className="display" style={{ fontSize: 22 }}>E-mail enviado!</h2>
+                <p className="auth-sub" style={{ marginTop: 6, fontSize: 13.5 }}>
+                  Enviamos instruções com link seguro para <b>{forgotEmail || 'seu e-mail'}</b>. Verifique sua caixa de entrada e spam.
+                </p>
+                <button className="btn lg block" type="button" style={{ marginTop: 16 }} onClick={() => openAuth('login')}>
+                  Voltar para o login
+                </button>
               </div>
             )}
           </div>

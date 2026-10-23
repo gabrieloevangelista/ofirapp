@@ -998,7 +998,9 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                 activeTab === 'geral' ? 'Painel da Empresa' :
                 activeTab === 'rfqs' ? 'Oportunidades & RFQs' :
                 activeTab === 'proposta' ? 'Emissor de Proposta' :
-                activeTab === 'chat' ? 'Negociações & Mensagens' : 'Tabela de Preços'
+                activeTab === 'chat' ? 'Negociações & Mensagens' :
+                activeTab === 'catalogo' ? 'Tabela de Preços' :
+                activeTab === 'custodia' ? 'Custódia & Repasses' : 'Perfil da Empresa'
               }</b>
             </div>
           </div>

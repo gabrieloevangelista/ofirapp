@@ -160,7 +160,12 @@ export function ProjectAnalyzer({
     if (!analysis) return;
     requireAuth(() => {
       const qid = sendChecklistQuotes(analysis.id);
-      if (!qid) toast('Selecione ao menos um fornecedor', 'Marque os itens e os fornecedores que devem receber a solicitação.');
+      if (!qid) {
+        toast('Selecione ao menos um fornecedor', 'Marque os itens e os fornecedores que devem receber a solicitação.');
+      } else {
+        toast('Cotação enviada com sucesso!', `${stats.sups} fornecedores notificados.`);
+        onOpenQuote(qid);
+      }
     });
   };
 

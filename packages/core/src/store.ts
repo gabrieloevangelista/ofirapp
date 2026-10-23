@@ -19,6 +19,11 @@ export interface User {
   avatar?: string;
   phone?: string;
   cpfCnpj?: string;
+  cep?: string;
+  street?: string;
+  num?: string;
+  comp?: string;
+  hood?: string;
   city?: string;
   uf?: string;
   bio?: string;
@@ -473,7 +478,7 @@ interface State {
   authOpen: boolean;
   authView: 'login' | 'signup' | 'forgot' | 'sent';
   pending: (() => void) | null;
-  openAuth: (view?: 'login' | 'signup' | 'forgot') => void;
+  openAuth: (view?: 'login' | 'signup' | 'forgot' | 'sent') => void;
   closeAuth: () => void;
   requireAuth: (fn: () => void) => void;
 
@@ -555,6 +560,11 @@ export const INITIAL_USER: User = {
   role: 'owner',
   phone: '(11) 98765-4321',
   cpfCnpj: '123.456.789-00',
+  cep: '12940-000',
+  street: 'Av. Lucas Nogueira Garcez',
+  num: '1250',
+  comp: '',
+  hood: 'Jardim do Lago',
   city: 'Atibaia',
   uf: 'SP',
   bio: 'Construindo casa térrea de 420m² em Atibaia utilizando sistemas modernos e sustentáveis.'
