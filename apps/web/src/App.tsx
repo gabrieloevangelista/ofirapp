@@ -3259,36 +3259,32 @@ export default function App() {
                   </div>
 
                   <div className="list" style={{ marginTop: 16 }}>
-                    <button onClick={() => setActiveScreen('notificacoes')}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        Notificações da obra
-                        {unreadCount > 0 && <span className="notif-count-pill">{unreadCount}</span>}
-                      </span>
+                    <button type="button" onClick={() => setActiveScreen('notificacoes')}>
+                      <span>Notificações da obra</span>
+                      {unreadCount > 0 && <span className="notif-count-pill">{unreadCount}</span>}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
                     {user && (
-                      <button onClick={() => setActiveScreen('perfil')}>
+                      <button type="button" onClick={() => setActiveScreen('perfil')}>
                         <span>Meu perfil</span>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                       </button>
                     )}
-                    <button onClick={() => setActiveScreen('enderecos')}>
+                    <button type="button" onClick={() => setActiveScreen('enderecos')}>
                       <span>Endereços de entrega</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
-                    <button onClick={() => setActiveScreen('hist')}>
+                    <button type="button" onClick={() => setActiveScreen('hist')}>
                       <span>Histórico de pedidos</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
-                    <button onClick={() => setActiveScreen('termos')}>
+                    <button type="button" onClick={() => setActiveScreen('termos')}>
                       <span>Termos de Uso da Plataforma</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
-                    <button onClick={() => setActiveScreen('privacidade')}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        Privacidade e LGPD
-                        <span className="notif-count-pill" style={{ background: 'rgba(23,74,64,0.15)', color: 'var(--accent)' }}>Lei 13.709</span>
-                      </span>
+                    <button type="button" onClick={() => setActiveScreen('privacidade')}>
+                      <span>Privacidade e LGPD</span>
+                      <span className="notif-count-pill" style={{ background: 'rgba(23,74,64,0.12)', color: 'var(--accent)' }}>Lei 13.709</span>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
                     </button>
                     <button onClick={() => setActiveScreen('conformidade')}>

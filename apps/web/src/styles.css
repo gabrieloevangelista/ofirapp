@@ -3210,8 +3210,22 @@ form[data-form] {
   border: 0
 }
 
-.list button span {
-  flex: 1
+.list button > span:first-child,
+.list button > span:not(.notif-count-pill):not(.pill):not(.badge) {
+  flex: 1;
+}
+
+.list button .notif-count-pill,
+.list button .pill,
+.list button .badge,
+.notif-count-pill {
+  flex: none !important;
+  width: auto !important;
+  max-width: max-content !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
 }
 
 .list button small {
