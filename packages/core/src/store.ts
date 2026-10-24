@@ -78,6 +78,13 @@ export interface Proposal {
   itemsDetail?: ProposalItemDetail[];
   createdAt?: string;
   updatedAt?: string;
+  platformFeePercent?: number;
+  passFeeToClient?: boolean;
+  taxPercent?: number;
+  passTaxToClient?: boolean;
+  baseSubtotal?: number;
+  grossTotal?: number;
+  netSupplierPayout?: number;
 }
 export interface QuoteItem { sup: string; conv?: string }
 export interface Quote {
@@ -310,7 +317,7 @@ export const INITIAL_OBRA: Obra = {
       date: 'em andamento',
       contract: { sup: 'Base Forte Fundações', stageName: 'Fundação', value: 186000, status: 'Protegido', m: 'm1' }
     },
-    { key: 'estrutura', name: 'Vedação e estrutura (EPS / Steel frame)', status: 'waiting', date: 'out' },
+    { key: 'estrutura', name: 'Vedação e estrutura', status: 'waiting', date: 'out' },
     { key: 'cobertura', name: 'Cobertura e telhado', status: 'waiting', date: 'nov' },
     { key: 'instalacoes', name: 'Instalações elétricas e hidráulicas', status: 'waiting', date: 'dez' },
     { key: 'esquadrias', name: 'Portas e esquadrias', status: 'waiting', date: 'jan' },

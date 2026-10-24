@@ -78,7 +78,7 @@ export const MATS: [string, string][] = [
 export const STAGES: [string, string][] = [
   ['terreno','Sondagem de solo e terraplenagem'],
   ['fundacao','Fundação'],
-  ['estrutura','Vedação e estrutura (EPS / Steel frame)'],
+  ['estrutura','Vedação e estrutura'],
   ['cobertura','Cobertura e telhado'],
   ['instalacoes','Elétrica e hidráulica'],
   ['esquadrias','Portas e esquadrias'],
@@ -169,7 +169,7 @@ export const MEDIA: Record<string, [string, string]> = {
   m7: ['#e5e9e1', '#bbc5b2'], m8: ['#e1e8e5', '#b2c3bc'], m9: ['#f0eee9', '#d5d1c7'],
 };
 
-export const PLATFORM_FEE = 0.03;
+export const PLATFORM_FEE = 0.02;
 
 export const DESC: Record<string, string> = {
   projeto:'Escritório de arquitetura focado em residências de alto padrão. Desenvolve o projeto completo, do estudo preliminar ao executivo, e cuida da aprovação na prefeitura e no condomínio.',

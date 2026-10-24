@@ -11,6 +11,7 @@ import {
 import { CustomSelect } from './components/CustomSelect';
 import { ProjectAnalyzer } from './components/ProjectAnalyzer';
 import { SupplierPortal } from './components/SupplierPortal';
+import { AuthScreen } from './components/AuthScreen';
 import { BRAZIL_UFS, fetchCitiesByUf, TOP_CITIES_BY_UF } from './data/brazilLocations';
 
 
@@ -237,13 +238,17 @@ export default function App() {
     const handleHash = () => {
       if (window.location.hash === '#fornecedor') {
         setCurrentPortal('supplier');
+      } else if (window.location.hash === '#login') {
+        openAuth('login');
+      } else if (window.location.hash === '#cadastro' || window.location.hash === '#signup') {
+        openAuth('signup');
       } else if (window.location.hash === '#cliente' || window.location.hash === '#obra') {
         setCurrentPortal('client');
       }
     };
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [openAuth]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -346,6 +351,7 @@ export default function App() {
   const [selSet, setSelSet] = useState<Set<string>>(new Set());
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [showSignupPass, setShowSignupPass] = useState(false);
+  const [loginRole, setLoginRole] = useState<'owner' | 'supplier'>('owner');
   const [signupRole, setSignupRole] = useState<'owner' | 'supplier'>('owner');
   const [signupName, setSignupName] = useState('Eduardo Castro');
   const [signupEmail, setSignupEmail] = useState('eduardo@ofir.com.br');
@@ -752,7 +758,7 @@ export default function App() {
 
   // Search hero inputs
   const [heroCity, setHeroCity] = useState('');
-  const [heroType, setHeroType] = useState('Casa térrea');
+  const [heroType, setHeroType] = useState('Construção');
   const [heroArea, setHeroArea] = useState('420');
 
   // Simulator
@@ -1042,9 +1048,44 @@ export default function App() {
   if (currentPortal === 'supplier') {
     return (
       <SupplierPortal
-        onSwitchToClient={() => {
+        onLogout={() => {
+          signOut();
           setCurrentPortal('client');
           if (window.location.hash === '#fornecedor') {
+            window.location.hash = '';
+          }
+        }}
+        onSwitchToClient={() => {
+          signOut();
+          setCurrentPortal('client');
+          if (window.location.hash === '#fornecedor') {
+            window.location.hash = '';
+          }
+        }}
+      />
+    );
+  }
+
+  if (authOpen) {
+    return (
+      <AuthScreen
+        initialView={authView}
+        initialRole={loginRole}
+        onSuccess={role => {
+          closeAuth();
+          if (role === 'supplier') {
+            setCurrentPortal('supplier');
+            window.location.hash = 'fornecedor';
+          } else {
+            setCurrentPortal('client');
+            if (window.location.hash === '#fornecedor' || window.location.hash === '#login' || window.location.hash === '#cadastro') {
+              window.location.hash = '';
+            }
+          }
+        }}
+        onBack={() => {
+          closeAuth();
+          if (window.location.hash === '#login' || window.location.hash === '#cadastro') {
             window.location.hash = '';
           }
         }}
@@ -1074,9 +1115,6 @@ export default function App() {
           <a href="#simulador" onClick={() => setMobileTabsOpen(false)}>Simulador <span className="tag">Novo</span></a>
           <a href="#simulador" onClick={() => setMobileTabsOpen(false)}>Financiamento</a>
           <a href="#etapas" onClick={() => setMobileTabsOpen(false)}>Guia da obra</a>
-          <a href="#fornecedor" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); setCurrentPortal('supplier'); window.location.hash = 'fornecedor'; }}>
-            Área do Fornecedor <span className="tag" style={{ background: '#1d4ed8', color: '#fff', fontWeight: 700 }}>B2B</span>
-          </a>
           <a href="#" onClick={e => { e.preventDefault(); setMobileTabsOpen(false); setActiveScreen('config'); }}>Configurações</a>
         </nav>
 
@@ -1242,32 +1280,6 @@ export default function App() {
             <Svg k="search" s={16} />
           </button>
 
-          <button
-            type="button"
-            className="sup-portal-nav-btn hide-m"
-            onClick={() => {
-              setCurrentPortal('supplier');
-              window.location.hash = 'fornecedor';
-            }}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              background: 'rgba(29, 78, 216, 0.08)',
-              color: '#1d4ed8',
-              border: '1px solid rgba(29, 78, 216, 0.25)',
-              borderRadius: 8,
-              padding: '6px 12px',
-              fontSize: 12.5,
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-            title="Acessar painel do fornecedor (RFQs, Propostas e Custódia)"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 21h18M6 21V10l6-6 6 6v11M9 15l2 2 4-4" /></svg>
-            Área do Fornecedor
-          </button>
-
           {!user ? (
             <button className="btn" onClick={() => openAuth('login')}>Entrar</button>
           ) : (
@@ -1278,18 +1290,6 @@ export default function App() {
               {menuOpen && (
                 <div className="umenu" role="menu" style={{ display: 'block' }}>
                   <div className="who"><b>{user.name}</b><span>{user.email}</span></div>
-                  <button
-                    role="menuitem"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      setCurrentPortal('supplier');
-                      window.location.hash = 'fornecedor';
-                    }}
-                    style={{ color: '#1d4ed8', fontWeight: 700 }}
-                  >
-                    <Svg k="building" s={16} color="#1d4ed8" /> Portal do Fornecedor
-                    <span className="umenu-badge" style={{ background: '#1d4ed8', color: '#fff' }}>B2B</span>
-                  </button>
                   <button role="menuitem" onClick={() => { setMenuOpen(false); setActiveScreen('notificacoes'); }}>
                     <Svg k="bell" s={16} /> Notificações
                     {unreadCount > 0 && <span className="umenu-badge">{unreadCount}</span>}
@@ -1359,13 +1359,11 @@ export default function App() {
                 value={heroType}
                 onChange={setHeroType}
                 options={[
-                  { value: 'Casa térrea', label: 'Casa térrea' },
-                  { value: 'Sobrado', label: 'Sobrado' },
-                  { value: 'Kitnets para renda', label: 'Kitnets para renda' },
-                  { value: 'Galpão', label: 'Galpão' },
-                  { value: 'Ampliação ou reforma', label: 'Ampliação ou reforma' },
+                  { value: 'Construção', label: 'Construção' },
+                  { value: 'Reforma', label: 'Reforma' },
+                  { value: 'Ampliação', label: 'Ampliação' },
                 ]}
-                placeholder="Tipo de imóvel"
+                placeholder="Tipo de obra"
                 searchable={false}
               />
             </div>
@@ -1546,7 +1544,7 @@ export default function App() {
                 <span className="ico"><Svg k="estrutura" s={17} /></span>
                 <span className="count">388 equipes</span>
               </div>
-              <div><h4>Vedação e estrutura</h4><p>Painel Monolítico EPS e Steel Frame</p></div>
+              <div><h4>Vedação e estrutura</h4><p>Paredes, lajes e fechamentos</p></div>
             </a>
             <a className="card" href="#fornecedores" onClick={e => { e.preventDefault(); goToStage('cobertura'); }}>
               <div className="card-head">
@@ -2104,8 +2102,8 @@ export default function App() {
           </div>
           <div>
             <h5>Para fornecedores</h5>
-            <a href="#" onClick={e => { e.preventDefault(); openAuth('signup'); }}>Cadastrar empresa</a>
-            <a href="#fornecedor" onClick={e => { e.preventDefault(); setCurrentPortal('supplier'); window.location.hash = 'fornecedor'; }}>Portal do Fornecedor (B2B)</a>
+            <a href="#cadastro" onClick={e => { e.preventDefault(); setLoginRole('supplier'); openAuth('signup'); }}>Cadastrar como Fornecedor</a>
+            <a href="#fornecedor" onClick={e => { e.preventDefault(); setLoginRole('supplier'); openAuth('login'); }}>Acesso do Fornecedor</a>
             <a href="#" onClick={e => { e.preventDefault(); setActiveScreen('conformidade'); }}>Custódia e Repasses</a>
           </div>
           <div>
@@ -4573,213 +4571,6 @@ export default function App() {
               <span><span className="kbd">Enter</span>abrir</span>
               <span><span className="kbd">Esc</span>fechar</span>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ----------------- AUTH (LOGIN & CADASTRO) ----------------- */}
-      {authOpen && (
-        <div className="auth" id="auth" style={{ display: 'grid' }}>
-          <div className="auth-scrim" onClick={closeAuth}></div>
-          <div className="auth-card">
-            <div className="auth-top">
-              <a className="logo" href="#">
-                <LogoIcon />
-                OFIR
-              </a>
-              <button className="icon-btn" aria-label="Fechar" onClick={closeAuth}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M6 6l12 12M18 6 6 18" /></svg>
-              </button>
-            </div>
-
-            {authView === 'login' && (
-              <div className="auth-view">
-                <h2 className="display" id="auth-title">Entrar</h2>
-                <p className="auth-sub">Acompanhe sua obra, converse com fornecedores e pague com proteção.</p>
-                <button className="social" type="button" onClick={() => signIn({ name: 'Eduardo Castro', email: 'eduardo@ofir.com.br', role: 'owner' })}>
-                  <span className="g">G</span>Continuar com Google
-                </button>
-                <div className="or">ou com e-mail</div>
-                <form onSubmit={e => {
-                  e.preventDefault();
-                  signIn({ name: 'Eduardo Castro', email: 'eduardo@ofir.com.br', role: 'owner' });
-                }}>
-                  <div className="inp"><label>E-mail</label><input type="email" placeholder="voce@email.com" defaultValue="eduardo@ofir.com.br" /></div>
-                  <div className="inp">
-                    <div className="lrow" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <label>Senha</label>
-                      <button type="button" className="link" onClick={() => openAuth('forgot')}>Esqueci minha senha</button>
-                    </div>
-                    <div className="pw">
-                      <input type={showLoginPass ? 'text' : 'password'} placeholder="Sua senha" defaultValue="12345678" />
-                      <button type="button" className="eye" aria-label="Mostrar senha" onClick={() => setShowLoginPass(!showLoginPass)}>
-                        {showLoginPass ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
-                        ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <button className="btn lg block" type="submit">Entrar</button>
-                </form>
-                <p className="auth-foot">Ainda não tem conta? <button className="link" onClick={() => openAuth('signup')}>Criar conta</button></p>
-              </div>
-            )}
-
-            {authView === 'signup' && (
-              <div className="auth-view">
-                <h2 className="display">Criar conta</h2>
-                <div className="role" id="role">
-                  <button
-                    type="button"
-                    className={signupRole === 'owner' ? 'on' : ''}
-                    onClick={() => setSignupRole('owner')}
-                  >
-                    <b>Vou construir</b>
-                    <span>Busco fornecedores para minha obra</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={signupRole === 'supplier' ? 'on' : ''}
-                    onClick={() => setSignupRole('supplier')}
-                  >
-                    <b>Sou fornecedor</b>
-                    <span>Quero receber pedidos de orçamento</span>
-                  </button>
-                </div>
-                <div className="or">seus dados</div>
-                <form onSubmit={e => {
-                  e.preventDefault();
-                  signIn({ name: signupName, email: signupEmail, phone: signupPhone, role: signupRole });
-                  toast('Conta criada com sucesso!', `Bem-vindo à OFIR como ${signupRole === 'supplier' ? 'fornecedor parceiro' : 'proprietário da obra'}.`);
-                }}>
-                  <div className="inp">
-                    <label>Nome completo</label>
-                    <input
-                      placeholder="Como devemos te chamar"
-                      value={signupName}
-                      onChange={e => setSignupName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="inp">
-                    <label>E-mail</label>
-                    <input
-                      type="email"
-                      placeholder="voce@email.com"
-                      value={signupEmail}
-                      onChange={e => setSignupEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="inp">
-                    <label>WhatsApp</label>
-                    <input
-                      type="tel"
-                      placeholder="(11) 90000-0000"
-                      value={signupPhone}
-                      onChange={e => {
-                        const raw = e.target.value;
-                        const digits = raw.replace(/\D/g, '').slice(0, 11);
-                        let masked = digits;
-                        if (digits.length > 6) {
-                          masked = `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
-                        } else if (digits.length > 2) {
-                          masked = `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-                        }
-                        setSignupPhone(masked);
-                      }}
-                      maxLength={15}
-                      required
-                    />
-                  </div>
-                  <div className="inp">
-                    <label>Senha</label>
-                    <div className="pw">
-                      <input
-                        type={showSignupPass ? 'text' : 'password'}
-                        placeholder="Mínimo de 8 caracteres"
-                        value={signupPass}
-                        onChange={e => setSignupPass(e.target.value)}
-                        required
-                      />
-                      <button type="button" className="eye" aria-label="Mostrar senha" onClick={() => setShowSignupPass(!showSignupPass)}>
-                        {showSignupPass ? (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61M2 2l20 20"/></svg>
-                        ) : (
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12.5, color: 'var(--text-2)', cursor: 'pointer', margin: '14px 0 16px', lineHeight: 1.45 }}>
-                    <input
-                      type="checkbox"
-                      checked={signupConsent}
-                      onChange={e => setSignupConsent(e.target.checked)}
-                      style={{ marginTop: 2, accentColor: 'var(--accent)', width: 16, height: 16, cursor: 'pointer' }}
-                    />
-                    <span>
-                      Declaro que li e concordo com os{' '}
-                      <button type="button" className="link" onClick={() => { closeAuth(); setActiveScreen('termos'); }}>Termos de Uso</button>
-                      {' '}e com a{' '}
-                      <button type="button" className="link" onClick={() => { closeAuth(); setActiveScreen('privacidade'); }}>Política de Privacidade (LGPD - Lei 13.709/2018)</button>.
-                    </span>
-                  </label>
-                  <button className="btn lg block" type="submit" disabled={!signupConsent}>Criar conta</button>
-                </form>
-                <p className="auth-foot">Já tem conta? <button className="link" onClick={() => openAuth('login')}>Entrar</button></p>
-              </div>
-            )}
-
-            {authView === 'forgot' && (
-              <div className="auth-view">
-                <h2 className="display" id="auth-title">Recuperar senha</h2>
-                <p className="auth-sub">Digite seu e-mail cadastrado e enviaremos um link de redefinição imediato.</p>
-                <form onSubmit={e => {
-                  e.preventDefault();
-                  if (!forgotEmail.trim()) return;
-                  setForgotLoading(true);
-                  setTimeout(() => {
-                    setForgotLoading(false);
-                    openAuth('sent');
-                  }, 600);
-                }}>
-                  <div className="inp">
-                    <label htmlFor="auth-forgot-email">E-mail</label>
-                    <input
-                      id="auth-forgot-email"
-                      type="email"
-                      placeholder="voce@email.com"
-                      value={forgotEmail}
-                      onChange={e => setForgotEmail(e.target.value)}
-                      required
-                      autoComplete="email"
-                    />
-                  </div>
-                  <button className="btn lg block" type="submit" disabled={forgotLoading || !forgotEmail.trim()}>
-                    {forgotLoading ? 'Enviando...' : 'Enviar link de recuperação'}
-                  </button>
-                </form>
-                <p className="auth-foot">Lembrou da senha? <button type="button" className="link" onClick={() => openAuth('login')}>Voltar ao login</button></p>
-              </div>
-            )}
-
-            {authView === 'sent' && (
-              <div className="auth-view" style={{ textAlign: 'center', padding: '16px 0 8px' }}>
-                <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(31,122,85,.12)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ok)', marginBottom: 12 }}>
-                  <Svg k="check" s={28} sw={2.5} color="var(--ok)" />
-                </div>
-                <h2 className="display" style={{ fontSize: 22 }}>E-mail enviado!</h2>
-                <p className="auth-sub" style={{ marginTop: 6, fontSize: 13.5 }}>
-                  Enviamos instruções com link seguro para <b>{forgotEmail || 'seu e-mail'}</b>. Verifique sua caixa de entrada e spam.
-                </p>
-                <button className="btn lg block" type="button" style={{ marginTop: 16 }} onClick={() => openAuth('login')}>
-                  Voltar para o login
-                </button>
-              </div>
-            )}
           </div>
         </div>
       )}

@@ -3,7 +3,8 @@ import { SUPPLIERS, type Supplier, ICONS, useStore, BRLc, type Proposal } from '
 import '../supplier-portal.css';
 
 interface SupplierPortalProps {
-  onSwitchToClient: () => void;
+  onSwitchToClient?: () => void;
+  onLogout?: () => void;
 }
 
 interface SupplierNotif {
@@ -13,7 +14,7 @@ interface SupplierNotif {
   description: string;
   time: string;
   read: boolean;
-  targetTab: 'rfqs' | 'proposta' | 'chat';
+  targetTab: 'rfqs' | 'proposta' | 'chat' | 'catalogo' | 'escrow';
   badge: string;
   icon: string;
 }
@@ -58,7 +59,7 @@ const PAYMENT_METHODS: { key: PaymentMethodKey; label: string; desc: string; bad
   {
     key: 'boleto_parcelado',
     label: 'Boleto Bancário Estruturado (Escrow)',
-    desc: 'Emissão de boletos faturados com split protegido conforme cada marco físico.',
+    desc: 'Emissão de boletos faturados com custódia protegida conforme cada marco físico.',
     badge: 'Corporativo',
     icon: 'doc'
   },
@@ -171,7 +172,7 @@ const INITIAL_SUPPLIER_NOTIFS: SupplierNotif[] = [
     description: 'Pagamento depositado na OFIR aguardando conclusão física das etapas.',
     time: 'Hoje, 09:30',
     read: false,
-    targetTab: 'proposta',
+    targetTab: 'escrow',
     badge: 'Custódia OFIR',
     icon: 'shield'
   },
@@ -211,7 +212,8 @@ const LogoIcon = () => (
   </svg>
 );
 
-export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
+export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalProps) {
+  const handleExit = onLogout || onSwitchToClient;
   const {
     conversations,
     proposals,
@@ -222,13 +224,22 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
 
   // Fornecedor ativo no painel
   const [selectedSupName, setSelectedSupName] = useState<string>('Base Forte Fundações');
-  const [activeTab, setActiveTab] = useState<'geral' | 'rfqs' | 'proposta' | 'chat' | 'catalogo'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'rfqs' | 'proposta' | 'chat' | 'catalogo' | 'escrow'>('geral');
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
   // Sub-aba dentro da aba de propostas ('editor' ou 'history')
   const [propSubTab, setPropSubTab] = useState<'editor' | 'history'>('editor');
+
+  // Estados da Tela Dedicada de Conta Escrow & Recebíveis Garantidos
+  const [escrowSubTab, setEscrowSubTab] = useState<'contratos' | 'simulador' | 'extrato' | 'conta_pj'>('contratos');
+  const [simBaseAmount, setSimBaseAmount] = useState<number>(120000);
+  const simFeePercent = 2.0; // Taxa Fixa de Intermediação OFIR (2.0% - não editável pelo fornecedor)
+  const [simPassFee, setSimPassFee] = useState<boolean>(true);
+  const [simTaxPercent, setSimTaxPercent] = useState<number>(6.0);
+  const [simPassTax, setSimPassTax] = useState<boolean>(true);
+  const [ledgerFilter, setLedgerFilter] = useState<'all' | 'credit' | 'payout' | 'fee'>('all');
 
   // Notificações da Área do Fornecedor
   const notifBellRef = useRef<HTMLDivElement>(null);
@@ -499,22 +510,47 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
   // Modal de prévia da proposta
   const [previewProp, setPreviewProp] = useState<Proposal | null>(null);
 
-  // Subtotal calculado diretamente a partir dos itens
-  const propTotal = useMemo(() => {
+  // Estados de Precificação, Intermediação da Plataforma & Impostos (Anti-Prejuízo)
+  const PLATFORM_FEE_PERCENT = 2.0;
+  const platformFeePercent = PLATFORM_FEE_PERCENT; // Taxa Fixa de Intermediação OFIR (2.0% - modelo intermediador tipo Uber, não editável)
+  const [passFeeToClient, setPassFeeToClient] = useState<boolean>(true); // Recomendado para não ter prejuízo
+  const [taxPercent, setTaxPercent] = useState<number>(6.0); // Simples Nacional padrão
+  const [passTaxToClient, setPassTaxToClient] = useState<boolean>(true); // Recomendado para não ter prejuízo
+
+  // Subtotal base dos itens orçados (serviços e materiais)
+  const baseSubtotal = useMemo(() => {
     return propItems.reduce((acc, it) => acc + (Number(it.total) || 0), 0);
   }, [propItems]);
 
-  const platformFee = Math.round(propTotal * 0.03); // 3% taxa de custódia da OFIR
-  const netSupplierValue = propTotal - platformFee;
+  // Alíquotas e frações de repasse
+  const feeRate = platformFeePercent / 100;
+  const taxRate = taxPercent / 100;
+  const totalPassRate = (passFeeToClient ? feeRate : 0) + (passTaxToClient ? taxRate : 0);
 
-  // Atualiza os valores das etapas automaticamente quando o total dos itens mudar
+  // Valor total bruto cobrado do cliente (cálculo de gross-up real para que as deduções não causem prejuízo)
+  const grossProposalTotal = useMemo(() => {
+    if (baseSubtotal <= 0) return 0;
+    if (totalPassRate > 0 && totalPassRate < 1) {
+      return Math.round(baseSubtotal / (1 - totalPassRate));
+    }
+    return baseSubtotal;
+  }, [baseSubtotal, totalPassRate]);
+
+  // Valores calculados
+  const platformFeeAmount = Math.round(grossProposalTotal * feeRate);
+  const taxAmount = Math.round(grossProposalTotal * taxRate);
+  const propTotal = grossProposalTotal;
+  const platformFee = platformFeeAmount;
+  const netSupplierValue = grossProposalTotal - platformFeeAmount - (passTaxToClient ? 0 : taxAmount);
+
+  // Atualiza os valores das etapas automaticamente quando o total final da proposta mudar
   useEffect(() => {
-    if (propTotal <= 0) return;
+    if (grossProposalTotal <= 0) return;
     setMilestones(prev => prev.map(m => ({
       ...m,
-      amount: Math.round((propTotal * m.percent) / 100)
+      amount: Math.round((grossProposalTotal * m.percent) / 100)
     })));
-  }, [propTotal]);
+  }, [grossProposalTotal]);
 
   const handleUpdateItemField = (idx: number, field: keyof ProposalItem, val: any) => {
     setPropItems(prev => {
@@ -641,7 +677,14 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         amount: m.amount,
         trigger: m.condition
       })),
-      createdAt: new Date().toLocaleDateString('pt-BR')
+      createdAt: new Date().toLocaleDateString('pt-BR'),
+      platformFeePercent,
+      passFeeToClient,
+      taxPercent,
+      passTaxToClient,
+      baseSubtotal,
+      grossTotal: grossProposalTotal,
+      netSupplierPayout: passFeeToClient && passTaxToClient ? baseSubtotal : netSupplierValue
     };
 
     useStore.setState(state => {
@@ -762,6 +805,10 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
         condition: 'Liberação por conclusão da etapa'
       })));
     }
+
+    if (prop.passFeeToClient !== undefined) setPassFeeToClient(prop.passFeeToClient);
+    if (prop.taxPercent !== undefined) setTaxPercent(prop.taxPercent);
+    if (prop.passTaxToClient !== undefined) setPassTaxToClient(prop.passTaxToClient);
 
     setPropSubTab('editor');
     setActiveTab('proposta');
@@ -905,8 +952,8 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
 
           <button
             type="button"
-            className="sidebar-nav-btn"
-            onClick={() => { setEscrowModalOpen(true); setMobileSidebarOpen(false); }}
+            className={`sidebar-nav-btn ${activeTab === 'escrow' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('escrow'); setMobileSidebarOpen(false); }}
             title="Conta Escrow e Valores Protegidos"
           >
             <span className="sidebar-nav-icon"><Svg k="shield" s={18} color="var(--ok)" /></span>
@@ -963,11 +1010,11 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
           <button
             type="button"
             className="sidebar-bottom-toggle-btn"
-            onClick={onSwitchToClient}
-            title="Voltar para a visão do dono da obra"
+            onClick={handleExit}
+            title="Sair da Conta PJ"
           >
-            <Svg k="back" s={14} />
-            <span>Visão do Cliente</span>
+            <Svg k="x" s={14} />
+            <span>Sair da Conta</span>
           </button>
         </div>
       </aside>
@@ -1000,7 +1047,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                 activeTab === 'proposta' ? 'Emissor de Proposta' :
                 activeTab === 'chat' ? 'Negociações & Mensagens' :
                 activeTab === 'catalogo' ? 'Tabela de Preços' :
-                activeTab === 'custodia' ? 'Custódia & Repasses' : 'Perfil da Empresa'
+                activeTab === 'escrow' ? 'Conta Escrow & Recebíveis Garantidos' : 'Perfil da Empresa'
               }</b>
             </div>
           </div>
@@ -1024,18 +1071,6 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
               ))}
             </select>
           </div>
-
-          {/* Botão de retorno imediato à visão do cliente */}
-          <button
-            type="button"
-            className="ghost sm"
-            onClick={onSwitchToClient}
-            title="Voltar para a visão do dono da obra"
-            style={{ fontWeight: 600, fontSize: 12.5 }}
-          >
-            <Svg k="back" s={14} />
-            Visão do Cliente
-          </button>
 
           {/* BOTÃO E POPOVER DE NOTIFICAÇÕES DO FORNECEDOR */}
           <div className="notif-bell-wrap" ref={notifBellRef}>
@@ -1105,8 +1140,8 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   </button>
                 </div>
 
-                {/* Lista de Notificações com Ícones Padronizados */}
-                <div className="notif-popover-list">
+                {/* Lista de Notificações com Ícones Padronizados e Espaçamento Perfeito */}
+                <div className="notif-list-container">
                   {notifs
                     .filter(n => notifTab === 'all' || n.category === notifTab)
                     .map(n => (
@@ -1116,16 +1151,31 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                         onClick={() => handleNotifClick(n)}
                         style={{ cursor: 'pointer' }}
                       >
-                        <div className="notif-item-ico">
-                          <Svg k={n.icon} s={16} color="var(--accent)" />
+                        <div className={`notif-icon-box ${n.category}`}>
+                          <Svg k={n.icon} s={18} color="currentColor" />
                         </div>
-                        <div className="notif-item-content">
-                          <div className="notif-item-meta">
-                            <span className="notif-item-badge">{n.badge}</span>
-                            <span className="notif-item-time">{n.time}</span>
+                        <div className="notif-content">
+                          <div className="notif-header-row">
+                            <span className="notif-title">{n.title}</span>
+                            <span className="notif-time">{n.time}</span>
                           </div>
-                          <h5>{n.title}</h5>
-                          <p>{n.description}</p>
+                          <p className="notif-desc">{n.description}</p>
+                          <div className="notif-footer-row">
+                            <span className={`notif-cat-tag ${n.category}`}>
+                              <Svg k={n.icon} s={11} color="currentColor" />
+                              {n.badge}
+                            </span>
+                            <span className="notif-action-hint">
+                              {n.category === 'negotiation'
+                                ? 'Ver negociação'
+                                : n.category === 'escrow'
+                                ? 'Acessar custódia'
+                                : n.category === 'rfq'
+                                ? 'Ver cotação'
+                                : 'Ver detalhes'}
+                              <Svg k="next" s={11} />
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1211,21 +1261,6 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   </div>
                 </div>
 
-                {/* Alternar de volta para o cliente */}
-                <button
-                  role="menuitem"
-                  onClick={() => {
-                    setSupplierMenuOpen(false);
-                    onSwitchToClient();
-                  }}
-                  style={{ color: 'var(--accent)', fontWeight: 700, background: 'var(--portal-badge-bg)' }}
-                >
-                  <Svg k="user" s={16} color="var(--accent)" />
-                  <span>Visão do Cliente (Obra)</span>
-                  <span className="umenu-badge" style={{ background: 'var(--accent)', color: '#fff' }}>Trocar</span>
-                </button>
-
-                <hr />
 
                 {/* Funções do Fornecedor */}
                 <button
@@ -1307,10 +1342,10 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   role="menuitem"
                   onClick={() => {
                     setSupplierMenuOpen(false);
-                    setEscrowModalOpen(true);
+                    setActiveTab('escrow');
                   }}
                 >
-                  <Svg k="shield" s={16} />
+                  <Svg k="shield" s={16} color="var(--ok)" />
                   <span>Conta Escrow & Recebíveis</span>
                   <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 700, color: 'var(--ok)' }}>R$ 186k</span>
                 </button>
@@ -1345,7 +1380,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   className="danger"
                   onClick={() => {
                     setSupplierMenuOpen(false);
-                    onSwitchToClient();
+                    if (handleExit) handleExit();
                     toast('Sessão encerrada no portal de fornecedores.');
                   }}
                   style={{ color: '#ef4444' }}
@@ -1460,7 +1495,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
               </div>
 
               {/* Card 2: Custódia & Escrow (Span 1 coluna) */}
-              <div className="bento-card" onClick={() => setEscrowModalOpen(true)} style={{ cursor: 'pointer' }}>
+              <div className="bento-card" onClick={() => setActiveTab('escrow')} style={{ cursor: 'pointer' }}>
                 <div className="bento-card-header">
                   <div className="bento-card-title-wrap">
                     <div className="bento-card-icon" style={{ color: 'var(--ok)' }}>
@@ -1483,10 +1518,10 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   type="button"
                   className="ghost sm"
                   style={{ alignSelf: 'flex-start', marginTop: 'auto', gap: 6 }}
-                  onClick={e => { e.stopPropagation(); setEscrowModalOpen(true); }}
+                  onClick={e => { e.stopPropagation(); setActiveTab('escrow'); }}
                 >
-                  <Svg k="shield" s={13} />
-                  <span>Ver Extrato Escrow</span>
+                  <Svg k="shield" s={13} color="var(--ok)" />
+                  <span>Acessar Painel Escrow</span>
                 </button>
               </div>
 
@@ -1637,13 +1672,16 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   <button
                     type="button"
                     className="bento-action-btn"
-                    onClick={onSwitchToClient}
+                    onClick={() => {
+                      setActiveTab('escrow');
+                      setEscrowSubTab('conta_pj');
+                    }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)' }}>
-                      <Svg k="eye" s={16} />
-                      <b>Visão do Cliente</b>
+                      <Svg k="shield" s={16} />
+                      <b>Auditoria & BaaS</b>
                     </div>
-                    <span>Visualizar a experiência do dono da obra e como suas propostas aparecem</span>
+                    <span>Gerenciar dados bancários da Conta PJ, certidões e chaves Pix para repasses</span>
                   </button>
                 </div>
               </div>
@@ -1729,7 +1767,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
           <div>
             <div className="sec-head">
               <div>
-                <span className="eyebrow">CONTRATO & SPLIT DE PAGAMENTO</span>
+                <span className="eyebrow">CONTRATO & CRONOGRAMA DE PAGAMENTO</span>
                 <h2 style={{ fontFamily: 'Source Serif 4, serif', margin: '4px 0 0' }}>Emissor de Proposta Comercial Oficial</h2>
                 <p style={{ color: 'var(--muted)', fontSize: 14, margin: '4px 0 0' }}>
                   Especifique quantidades, valores unitários, formas de pagamento e marcos protegidos de liberação em custódia.
@@ -1821,7 +1859,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                                 {BRLc(tot)}
                               </div>
                               <span style={{ fontSize: 11, color: 'var(--muted)' }}>
-                                {prop.rows.length} etapas no split de custódia
+                                {prop.rows.length} etapas na custódia protegida
                               </span>
                             </div>
                           </div>
@@ -2047,10 +2085,10 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                         <tfoot>
                           <tr style={{ background: 'var(--surface-2)' }}>
                             <td colSpan={4} style={{ textAlign: 'right', fontWeight: 700, padding: '10px 14px' }}>
-                              Subtotal dos Itens Orçados:
+                              Subtotal dos Itens Orçados (Base de Custos & Serviços):
                             </td>
                             <td style={{ textAlign: 'right', fontWeight: 800, fontSize: 15, color: 'var(--accent)', padding: '10px 14px' }}>
-                              {BRLc(propTotal)}
+                              {BRLc(baseSubtotal)}
                             </td>
                             <td></td>
                           </tr>
@@ -2059,9 +2097,193 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                     </div>
                   </div>
 
-                  {/* Bloco 3: Formas de Pagamento Aceitas */}
+                  {/* Bloco 3: Formação do Preço, Comissão OFIR & Impostos (Proteção Anti-Prejuízo) */}
+                  <div className="panel pricing-pass-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <span className="eyebrow">3. FORMAÇÃO DO PREÇO, COMISSÃO OFIR & IMPOSTOS</span>
+                        <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                          Defina o repasse da taxa da plataforma e dos impostos para o cliente para garantir 100% da sua margem líquida.
+                        </p>
+                      </div>
+                      {passFeeToClient && passTaxToClient ? (
+                        <span className="anti-loss-badge">
+                          <Svg k="shield" s={13} color="var(--ok)" /> Margem 100% Protegida (Sem Prejuízo)
+                        </span>
+                      ) : (
+                        <span className="loss-warning-badge">
+                          <Svg k="trash" s={13} color="#ef4444" /> Atenção: Absorção de Custos Ativa
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="pricing-pass-grid">
+                      {/* Coluna da Esquerda: Switches de Repasse com Sugestão Proativa */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        {/* Switch 1: Intermediação da Plataforma OFIR (Fixa em 2.0% - Modelo Intermediação tipo Uber) */}
+                        <div className={`pass-switch-box ${passFeeToClient ? 'active-pass' : 'warning-absorb'}`}>
+                          <div className="pass-switch-header">
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <Svg k="shield" s={16} color={passFeeToClient ? 'var(--ok)' : 'var(--muted)'} />
+                                <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>Taxa de Intermediação OFIR</strong>
+                                <span className="pill" style={{ fontSize: 11, fontWeight: 700, background: 'rgba(23, 74, 64, 0.08)', color: 'var(--accent)' }}>
+                                  2.0% Fixa (Não editável)
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 11.5, color: passFeeToClient ? 'var(--ok)' : '#ef4444', fontWeight: 600, display: 'block', marginTop: 3 }}>
+                                {passFeeToClient 
+                                  ? 'Sugerido / Recomendado: Repassar taxa ao cliente pagar' 
+                                  : 'Atenção: Sua empresa absorverá a taxa de intermediação'}
+                              </span>
+                            </div>
+
+                            <label className="toggle-switch" title={passFeeToClient ? 'Repasse ativo' : 'Absorver taxa'}>
+                              <input
+                                type="checkbox"
+                                checked={passFeeToClient}
+                                onChange={e => setPassFeeToClient(e.target.checked)}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                          </div>
+
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+                            {passFeeToClient 
+                              ? `O valor cobrado do cliente é ajustado com gross-up (+ ${BRLc(platformFeeAmount)}). A taxa de 2,0% de intermediação é retida pela OFIR na transação e sua empresa recebe exatamente 100% do seu orçamento líquido.`
+                              : `A taxa fixa de 2,0% de intermediação (${BRLc(platformFeeAmount)}) será retida da sua receita na liquidação dos marcos.`}
+                          </p>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-2)', background: 'var(--surface)', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line-2)' }}>
+                            <Svg k="shield" s={15} color="var(--accent)" />
+                            <span><b>Modelo de Intermediação:</b> A OFIR opera intermediando as negociações (modelo de plataforma similar ao Uber), retendo 2% da transação para garantir a custódia e segurança financeira.</span>
+                          </div>
+                        </div>
+
+                        {/* Switch 2: Impostos da Nota Fiscal */}
+                        <div className={`pass-switch-box ${passTaxToClient ? 'active-pass' : 'warning-absorb'}`}>
+                          <div className="pass-switch-header">
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Svg k="doc" s={16} color={passTaxToClient ? 'var(--ok)' : 'var(--muted)'} />
+                                <strong style={{ fontSize: 13.5, color: 'var(--text)' }}>Impostos & Tributos da Nota Fiscal</strong>
+                                <span className="pill" style={{ fontSize: 11, fontWeight: 700 }}>
+                                  {taxPercent}%
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 11.5, color: passTaxToClient ? 'var(--ok)' : '#ef4444', fontWeight: 600, display: 'block', marginTop: 3 }}>
+                                {passTaxToClient 
+                                  ? 'Sugerido / Recomendado: Embutir impostos para o cliente pagar' 
+                                  : 'Atenção: Os tributos fiscais sairão do seu caixa'}
+                              </span>
+                            </div>
+
+                            <label className="toggle-switch" title={passTaxToClient ? 'Repasse de impostos ativo' : 'Absorver impostos'}>
+                              <input
+                                type="checkbox"
+                                checked={passTaxToClient}
+                                onChange={e => setPassTaxToClient(e.target.checked)}
+                              />
+                              <span className="toggle-slider"></span>
+                            </label>
+                          </div>
+
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+                            {passTaxToClient
+                              ? `A alíquota de ${taxPercent}% é calculada na formação do preço (+ ${BRLc(taxAmount)}). Ao emitir a NF-e para o cliente, a guia DAS/DARF é paga sem morder o lucro líquido orçado.`
+                              : `Sua empresa recolherá a guia fiscal de ${taxPercent}% (${BRLc(taxAmount)}) sobre o valor orçado, reduzindo sua margem líquida.`}
+                          </p>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Regime tributário:</span>
+                            {[
+                              { label: 'Simples (6%)', val: 6 },
+                              { label: 'Presumido (13.33%)', val: 13.33 },
+                              { label: 'Lucro Real (14.25%)', val: 14.25 },
+                              { label: 'Isento (0%)', val: 0 }
+                            ].map(taxOpt => (
+                              <button
+                                key={taxOpt.val}
+                                type="button"
+                                className="ghost sm"
+                                style={{
+                                  fontSize: 11,
+                                  padding: '2px 7px',
+                                  height: 26,
+                                  borderColor: taxPercent === taxOpt.val ? 'var(--accent)' : 'var(--line)',
+                                  background: taxPercent === taxOpt.val ? 'var(--portal-badge-bg)' : 'transparent',
+                                  color: taxPercent === taxOpt.val ? 'var(--accent)' : 'var(--text-2)'
+                                }}
+                                onClick={() => setTaxPercent(taxOpt.val)}
+                              >
+                                {taxOpt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Coluna da Direita: Demonstrativo Financeiro Lado a Lado */}
+                      <div className="waterfall-summary-box">
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Demonstrativo da Formação de Preço
+                        </span>
+
+                        <div className="waterfall-line">
+                          <span>Subtotal Orçado (Serviços & Insumos):</span>
+                          <b style={{ color: 'var(--text)' }}>{BRLc(baseSubtotal)}</b>
+                        </div>
+
+                        <div className="waterfall-line" style={{ color: passFeeToClient ? 'var(--ok)' : 'var(--muted)' }}>
+                          <span>(+) Repasse Taxa OFIR ({platformFeePercent}%):</span>
+                          <b>{passFeeToClient ? `+ ${BRLc(platformFeeAmount)}` : 'R$ 0,00 (não repassado)'}</b>
+                        </div>
+
+                        <div className="waterfall-line" style={{ color: passTaxToClient ? 'var(--ok)' : 'var(--muted)' }}>
+                          <span>(+) Repasse de Impostos ({taxPercent}%):</span>
+                          <b>{passTaxToClient ? `+ ${BRLc(taxAmount)}` : 'R$ 0,00 (não repassado)'}</b>
+                        </div>
+
+                        <div className="waterfall-line total-client">
+                          <span>VALOR COBRADO DO CLIENTE:</span>
+                          <b style={{ color: 'var(--accent)', fontSize: 16 }}>{BRLc(grossProposalTotal)}</b>
+                        </div>
+
+                        <div style={{ height: 1, background: 'var(--line)', margin: '4px 0' }} />
+
+                        <div className="waterfall-line" style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                          <span>(-) Intermediação OFIR (2%):</span>
+                          <span>- {BRLc(platformFeeAmount)}</span>
+                        </div>
+
+                        <div className="waterfall-line" style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                          <span>(-) Provisão da Guia de Impostos (NF):</span>
+                          <span>- {BRLc(taxAmount)}</span>
+                        </div>
+
+                        <div className="waterfall-line total-net">
+                          <span>LÍQUIDO PRESERVADO NA SUA CONTA:</span>
+                          <b>{BRLc(passFeeToClient && passTaxToClient ? baseSubtotal : netSupplierValue)}</b>
+                        </div>
+
+                        {passFeeToClient && passTaxToClient ? (
+                          <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: 6, fontSize: 11, color: 'var(--ok)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Svg k="shield" s={14} color="var(--ok)" />
+                            <span><b>Sem Prejuízo:</b> Você recebe integralmente os {BRLc(baseSubtotal)} na conta PJ Itaú.</span>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 6, padding: '8px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, fontSize: 11, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Svg k="trash" s={14} color="#ef4444" />
+                            <span><b>Atenção:</b> Sua margem foi reduzida em {BRLc(baseSubtotal - (passFeeToClient && passTaxToClient ? baseSubtotal : netSupplierValue))}.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bloco 4: Formas de Pagamento Aceitas */}
                   <div className="panel">
-                    <span className="eyebrow">3. CONDIÇÕES & FORMAS DE PAGAMENTO</span>
+                    <span className="eyebrow">4. CONDIÇÕES & FORMAS DE PAGAMENTO</span>
                     <p style={{ margin: '4px 0 12px', fontSize: 13, color: 'var(--muted)' }}>
                       Escolha a modalidade financeira que será oferecida no contrato ao cliente.
                     </p>
@@ -2092,7 +2314,7 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                   <div className="panel">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                       <div>
-                        <span className="eyebrow">4. DIVISÃO DO PAGAMENTO POR MARCOS (SPLIT DE CUSTÓDIA)</span>
+                        <span className="eyebrow">5. CRONOGRAMA DE PAGAMENTO POR MARCOS EM CUSTÓDIA</span>
                         <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
                           O valor de cada etapa só é liberado à sua conta após a comprovação e aceite na obra.
                         </p>
@@ -2230,13 +2452,32 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                     </div>
 
                     <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 8, fontSize: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--muted)' }}>
-                        <span>Taxa de custódia e garantia OFIR (3%):</span>
-                        <span>- {BRLc(platformFee)}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-2)' }}>
+                        <span>Valor Base dos Serviços:</span>
+                        <b style={{ fontFamily: 'ui-monospace, monospace' }}>{BRLc(baseSubtotal)}</b>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--accent)', marginTop: 4, fontSize: 13.5 }}>
-                        <span>Líquido a receber:</span>
-                        <span>{BRLc(netSupplierValue)}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: passFeeToClient ? 'var(--ok)' : 'var(--muted)', marginTop: 3 }}>
+                        <span>Comissão OFIR ({platformFeePercent}%):</span>
+                        <span>{passFeeToClient ? `Repassada (+ ${BRLc(platformFeeAmount)})` : `Absorvida (- ${BRLc(platformFeeAmount)})`}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: passTaxToClient ? 'var(--ok)' : 'var(--muted)', marginTop: 3 }}>
+                        <span>Impostos da NF ({taxPercent}%):</span>
+                        <span>{passTaxToClient ? `Repassados (+ ${BRLc(taxAmount)})` : `Absorvidos (- ${BRLc(taxAmount)})`}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, color: 'var(--ok)', marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line)', fontSize: 13.5 }}>
+                        <span>Líquido na conta PJ Itaú:</span>
+                        <span style={{ fontFamily: 'ui-monospace, monospace' }}>{BRLc(passFeeToClient && passTaxToClient ? baseSubtotal : netSupplierValue)}</span>
+                      </div>
+                      <div style={{ marginTop: 6, textAlign: 'center' }}>
+                        {passFeeToClient && passTaxToClient ? (
+                          <span className="pill ok" style={{ fontSize: 10, padding: '2px 6px', display: 'inline-block' }}>
+                            Margem 100% Protegida (Sem Prejuízo)
+                          </span>
+                        ) : (
+                          <span className="pill" style={{ fontSize: 10, padding: '2px 6px', display: 'inline-block', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}>
+                            Atenção: Margem Reduzida por Absorção
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -2578,6 +2819,691 @@ export function SupplierPortal({ onSwitchToClient }: SupplierPortalProps) {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* ==================== ABA: CONTA ESCROW & RECEBÍVEIS GARANTIDOS (TELA DEDICADA) ==================== */}
+        {activeTab === 'escrow' && (
+          <div className="escrow-screen">
+            {/* 1. HERO HEADER DE CUSTÓDIA */}
+            <div className="escrow-hero-card">
+              <div className="escrow-hero-header">
+                <div className="escrow-hero-title-wrap">
+                  <div className="escrow-hero-icon">
+                    <Svg k="shield" s={22} color="var(--ok)" />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+                        Conta Escrow & Recebíveis Garantidos
+                      </h2>
+                      {CHECK_BADGE}
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--muted)' }}>
+                      Custódia financeira regulada em parceria com BaaS e Banco Central (CIP) · Liquidação automática D+0 por marco aprovado
+                    </p>
+                  </div>
+                </div>
+
+                <div className="escrow-hero-actions">
+                  <span className="pill ok" style={{ fontSize: 11, padding: '4px 8px' }}>
+                    <Svg k="shield" s={12} color="var(--ok)" /> Custódia 100% Auditada
+                  </span>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleRequestEscrowPayout}
+                    disabled={releasedBalance <= 0}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: releasedBalance <= 0 ? 0.6 : 1 }}
+                  >
+                    <Svg k="shield" s={15} /> Transferir Saldo Liberado ({BRLc(releasedBalance)})
+                  </button>
+                </div>
+              </div>
+
+              {/* Grid de 4 KPIs Financeiros */}
+              <div className="escrow-kpis-grid">
+                <div className="escrow-kpi-item">
+                  <span className="escrow-kpi-label">
+                    <Svg k="shield" s={12} color="var(--ok)" /> Total em Custódia
+                  </span>
+                  <div className="escrow-kpi-val" style={{ color: 'var(--text)' }}>
+                    {BRLc(releasedBalance + inEscrowBalance)}
+                  </div>
+                  <span className="escrow-kpi-sub">
+                    <span className="bento-pill ok" style={{ fontSize: 10, padding: '1px 5px' }}>100% Garantido</span>
+                    Contratos protegidos
+                  </span>
+                </div>
+
+                <div className="escrow-kpi-item" style={{ background: 'var(--portal-badge-bg)', borderColor: 'rgba(30,58,138,0.25)' }}>
+                  <span className="escrow-kpi-label" style={{ color: 'var(--accent)' }}>
+                    <Svg k="check" s={12} color="var(--accent)" /> Liberado p/ Transferência
+                  </span>
+                  <div className="escrow-kpi-val" style={{ color: 'var(--accent)' }}>
+                    {BRLc(releasedBalance)}
+                  </div>
+                  <span className="escrow-kpi-sub" style={{ color: 'var(--accent)' }}>
+                    {releasedBalance > 0 ? 'Disponível para saque D+0 via PIX' : 'Nenhum valor pendente'}
+                  </span>
+                </div>
+
+                <div className="escrow-kpi-item">
+                  <span className="escrow-kpi-label">
+                    <Svg k="clock" s={12} color="var(--muted)" /> Em Execução Física
+                  </span>
+                  <div className="escrow-kpi-val" style={{ color: 'var(--text-2)' }}>
+                    {BRLc(inEscrowBalance)}
+                  </div>
+                  <span className="escrow-kpi-sub">
+                    2 etapas em andamento na obra
+                  </span>
+                </div>
+
+                <div className="escrow-kpi-item">
+                  <span className="escrow-kpi-label">
+                    <Svg k="doc" s={12} color="var(--ok)" /> Política de Repasse
+                  </span>
+                  <div className="escrow-kpi-val" style={{ fontSize: 17, color: 'var(--ok)' }}>
+                    Taxa OFIR 2% + Impostos
+                  </div>
+                  <span className="escrow-kpi-sub">
+                    <span className="bento-pill ok" style={{ fontSize: 10, padding: '1px 5px' }}>Repasse Ativo</span>
+                    Zero prejuízo para o fornecedor
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. SUB-NAVEGAÇÃO DA TELA DE ESCROW */}
+            <div className="escrow-subnav-pills">
+              <button
+                type="button"
+                className={`escrow-subnav-btn ${escrowSubTab === 'contratos' ? 'active' : ''}`}
+                onClick={() => setEscrowSubTab('contratos')}
+              >
+                <Svg k="building" s={15} /> Marcos & Contratos Ativos
+              </button>
+              <button
+                type="button"
+                className={`escrow-subnav-btn ${escrowSubTab === 'simulador' ? 'active' : ''}`}
+                onClick={() => setEscrowSubTab('simulador')}
+              >
+                <Svg k="orc" s={15} /> Simulador Anti-Prejuízo (Comissão & Impostos)
+              </button>
+              <button
+                type="button"
+                className={`escrow-subnav-btn ${escrowSubTab === 'extrato' ? 'active' : ''}`}
+                onClick={() => setEscrowSubTab('extrato')}
+              >
+                <Svg k="doc" s={15} /> Extrato de Lançamentos & Liquidação
+              </button>
+              <button
+                type="button"
+                className={`escrow-subnav-btn ${escrowSubTab === 'conta_pj' ? 'active' : ''}`}
+                onClick={() => setEscrowSubTab('conta_pj')}
+              >
+                <Svg k="shield" s={15} /> Conta Bancária PJ & Auditoria BaaS
+              </button>
+            </div>
+
+            {/* 3. CONTEÚDO DAS SUB-ABAS */}
+            {/* SUB-ABA 1: MARCOS E CONTRATOS */}
+            {escrowSubTab === 'contratos' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Contrato 1: Ativo */}
+                <div className="escrow-contract-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="eyebrow">CONTRATO ATIVO #PROP-842</span>
+                        <span className="pill ok" style={{ fontSize: 10 }}>Em Execução Física</span>
+                      </div>
+                      <h3 style={{ margin: '3px 0 0', fontSize: 17, fontWeight: 700 }}>
+                        Fundação em Radier Armado 420m² · Obra Casa Térrea
+                      </h3>
+                      <p style={{ margin: '2px 0 0', fontSize: 12.5, color: 'var(--muted)' }}>
+                        Cliente: Eduardo Castro · Atibaia/SP · Custódia integral garantida na plataforma
+                      </p>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block' }}>Valor sob Custódia:</span>
+                      <b style={{ fontSize: 18, fontFamily: 'ui-monospace, monospace', color: 'var(--text)' }}>
+                        R$ 186.000,00
+                      </b>
+                    </div>
+                  </div>
+
+                  {/* Barra de Progresso Físico */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--muted)' }}>Progresso da Obra e Liberações:</span>
+                      <b style={{ color: 'var(--accent)' }}>Etapa 1 Aprovada (58% liberado ou em medição)</b>
+                    </div>
+                    <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: '58%', height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
+                    </div>
+                  </div>
+
+                  {/* Lista de Marcos do Contrato */}
+                  <div className="escrow-milestone-list">
+                    {/* Marco 1: Liberado */}
+                    <div className="escrow-milestone-card released">
+                      <div className="escrow-milestone-left">
+                        <div className="escrow-step-num">1</div>
+                        <div>
+                          <strong style={{ fontSize: 14, color: 'var(--text)', display: 'block' }}>
+                            Etapa 1 · Sondagem e Escavação Mecânica
+                          </strong>
+                          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                            Laudo geotécnico e locação topográfica validados e aceitos pelo cliente
+                          </span>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
+                            <span style={{ color: 'var(--ok)' }}>Taxa OFIR: R$ 1.746 (repassada)</span>
+                            <span>·</span>
+                            <span style={{ color: 'var(--ok)' }}>Impostos: R$ 3.492 (repassados na NF)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="escrow-milestone-figures">
+                        <div>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block' }}>Valor Líquido:</span>
+                          <b style={{ fontSize: 17, fontFamily: 'ui-monospace, monospace', color: 'var(--ok)' }}>
+                            R$ 58.200,00
+                          </b>
+                        </div>
+                        <span className="pill ok" style={{ fontSize: 11 }}>
+                          Liberado p/ Saque D+0
+                        </span>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={handleRequestEscrowPayout}
+                          disabled={releasedBalance <= 0}
+                          style={{ fontSize: 11.5 }}
+                        >
+                          Transferir Saldo
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Marco 2: Em Execução */}
+                    <div className="escrow-milestone-card in-progress">
+                      <div className="escrow-milestone-left">
+                        <div className="escrow-step-num">2</div>
+                        <div>
+                          <strong style={{ fontSize: 14, color: 'var(--text)', display: 'block' }}>
+                            Etapa 2 · Armação de Aço e Concretagem Usinada
+                          </strong>
+                          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                            Montagem das formas e armaduras CA-50 em andamento no canteiro (65% concluído)
+                          </span>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4, fontSize: 11 }}>
+                            <span style={{ color: 'var(--text-2)' }}>Vistoria técnica agendada para 28/10/2026</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="escrow-milestone-figures">
+                        <div>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block' }}>Garantido em Custódia:</span>
+                          <b style={{ fontSize: 17, fontFamily: 'ui-monospace, monospace', color: 'var(--text)' }}>
+                            R$ 96.800,00
+                          </b>
+                        </div>
+                        <span className="pill" style={{ fontSize: 11 }}>
+                          Em Andamento
+                        </span>
+                        <button
+                          type="button"
+                          className="ghost sm"
+                          onClick={() => {
+                            setActiveTab('chat');
+                            toast('Chat com o cliente aberto', 'Envie as fotos e laudo da etapa 2.');
+                          }}
+                          style={{ fontSize: 11.5 }}
+                        >
+                          Anexar Evidências
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Marco 3: Aguardando */}
+                    <div className="escrow-milestone-card pending">
+                      <div className="escrow-milestone-left">
+                        <div className="escrow-step-num">3</div>
+                        <div>
+                          <strong style={{ fontSize: 14, color: 'var(--text)', display: 'block' }}>
+                            Etapa 3 · Cura, Desforma e Liberação de Carga
+                          </strong>
+                          <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                            Gatilho de liberação: Laudo tecnológico de rompimento dos corpos de prova (28 dias)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="escrow-milestone-figures">
+                        <div>
+                          <span style={{ fontSize: 11, color: 'var(--muted)', display: 'block' }}>Garantido em Custódia:</span>
+                          <b style={{ fontSize: 17, fontFamily: 'ui-monospace, monospace', color: 'var(--muted)' }}>
+                            R$ 31.000,00
+                          </b>
+                        </div>
+                        <span className="pill" style={{ fontSize: 11, opacity: 0.7 }}>
+                          Aguardando
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contrato 2: Concluído / Histórico */}
+                <div className="escrow-contract-card" style={{ opacity: 0.9 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="eyebrow">CONTRATO ENCERRADO #PROP-720</span>
+                        <span className="pill ok" style={{ fontSize: 10 }}>100% Liquidado</span>
+                      </div>
+                      <h4 style={{ margin: '3px 0 0', fontSize: 15, fontWeight: 700 }}>
+                        Sondagem SPT e Infraestrutura de Baldrame · Obra Residencial Valinhos
+                      </h4>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--muted)' }}>
+                        Cliente: Carlos Mendes · R$ 94.000,00 transferidos integralmente via PIX D+0 em 02/10/2026
+                      </p>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <span className="bento-pill ok" style={{ fontSize: 11 }}>
+                        <Svg k="check" s={12} color="var(--ok)" /> Quitado sem pendências
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-ABA 2: SIMULADOR ANTI-PREJUÍZO */}
+            {escrowSubTab === 'simulador' && (
+              <div className="pricing-pass-card">
+                <div style={{ marginBottom: 16 }}>
+                  <span className="eyebrow">CALCULADORA DE FORMAÇÃO DE PREÇO & INTERMEDIAÇÃO OFIR</span>
+                  <h3 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700 }}>
+                    Simulador de Repasse: Como não sair no prejuízo
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--muted)' }}>
+                    Simule qualquer valor orçado e veja a diferença exata entre repassar as taxas ao cliente versus absorver os custos na sua margem.
+                  </p>
+                </div>
+
+                <div className="pricing-pass-grid">
+                  {/* Inputs e Switches */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--line-2)' }}>
+                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
+                        Valor Base Orçado dos seus Serviços (Seu Custo + Lucro Desejado)
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <input
+                          type="number"
+                          min={1000}
+                          step={5000}
+                          value={simBaseAmount}
+                          onChange={e => setSimBaseAmount(Math.max(1000, Number(e.target.value)))}
+                          style={{ flex: 1, height: 42, padding: '0 12px', fontSize: 16, fontWeight: 700, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}
+                        />
+                        <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)', fontFamily: 'ui-monospace, monospace' }}>
+                          {BRLc(simBaseAmount)}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10000}
+                        max={500000}
+                        step={5000}
+                        value={simBaseAmount}
+                        onChange={e => setSimBaseAmount(Number(e.target.value))}
+                        style={{ width: '100%', marginTop: 10, accentColor: 'var(--accent)' }}
+                      />
+                    </div>
+
+                    {/* Switch 1: Taxa de Intermediação OFIR (Fixa 2.0%) */}
+                    <div className={`pass-switch-box ${simPassFee ? 'active-pass' : 'warning-absorb'}`}>
+                      <div className="pass-switch-header">
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Svg k="shield" s={16} color={simPassFee ? 'var(--ok)' : 'var(--muted)'} />
+                            <strong style={{ fontSize: 14 }}>Taxa de Intermediação OFIR ({simFeePercent}% Fixa)</strong>
+                          </div>
+                          <span style={{ fontSize: 11.5, color: simPassFee ? 'var(--ok)' : '#ef4444', fontWeight: 600, display: 'block', marginTop: 2 }}>
+                            {simPassFee ? 'Sugerido: Repassar para o cliente pagar (Ativo)' : 'Atenção: Sua empresa absorverá a taxa'}
+                          </span>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={simPassFee}
+                            onChange={e => setSimPassFee(e.target.checked)}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)' }}>
+                        {simPassFee 
+                          ? 'A taxa de intermediação de 2% (modelo similar à Uber) é adicionada no valor bruto do cliente com gross-up. Você recebe 100% livre do seu valor orçado.'
+                          : 'A taxa de intermediação de 2% será deduzida da sua receita líquida.'}
+                      </p>
+                    </div>
+
+                    {/* Switch 2: Impostos */}
+                    <div className={`pass-switch-box ${simPassTax ? 'active-pass' : 'warning-absorb'}`}>
+                      <div className="pass-switch-header">
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <Svg k="doc" s={16} color={simPassTax ? 'var(--ok)' : 'var(--muted)'} />
+                            <strong style={{ fontSize: 14 }}>Impostos Tributários da NF ({simTaxPercent}%)</strong>
+                          </div>
+                          <span style={{ fontSize: 11.5, color: simPassTax ? 'var(--ok)' : '#ef4444', fontWeight: 600, display: 'block', marginTop: 2 }}>
+                            {simPassTax ? 'Sugerido: Embutir impostos para o cliente pagar (Ativo)' : 'Atenção: Os tributos sairão do seu lucro'}
+                          </span>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={simPassTax}
+                            onChange={e => setSimPassTax(e.target.checked)}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Simples (6%)', val: 6 },
+                          { label: 'Presumido (13.33%)', val: 13.33 },
+                          { label: 'Real (14.25%)', val: 14.25 },
+                          { label: 'Isento (0%)', val: 0 }
+                        ].map(t => (
+                          <button
+                            key={t.val}
+                            type="button"
+                            className="ghost sm"
+                            style={{
+                              fontSize: 11,
+                              padding: '2px 8px',
+                              height: 26,
+                              borderColor: simTaxPercent === t.val ? 'var(--accent)' : 'var(--line)',
+                              background: simTaxPercent === t.val ? 'var(--portal-badge-bg)' : 'transparent',
+                              color: simTaxPercent === t.val ? 'var(--accent)' : 'var(--text-2)'
+                            }}
+                            onClick={() => setSimTaxPercent(t.val)}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setPassFeeToClient(simPassFee);
+                        setTaxPercent(simTaxPercent);
+                        setPassTaxToClient(simPassTax);
+                        setActiveTab('proposta');
+                        setPropSubTab('editor');
+                        toast('Parâmetros aplicados!', 'As regras de taxa e imposto foram sincronizadas com o Emissor de Proposta.');
+                      }}
+                      style={{ height: 42, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Svg k="clip" s={15} /> Aplicar Parâmetros no Emissor de Proposta
+                    </button>
+                  </div>
+
+                  {/* Comparativo de Resultados (Cenário com Repasse vs Sem Repasse) */}
+                  {(() => {
+                    const simFeeRate = simFeePercent / 100;
+                    const simTaxRate = simTaxPercent / 100;
+                    const simPassRate = (simPassFee ? simFeeRate : 0) + (simPassTax ? simTaxRate : 0);
+                    const simGross = simPassRate > 0 && simPassRate < 1 ? Math.round(simBaseAmount / (1 - simPassRate)) : simBaseAmount;
+                    const simFeeVal = Math.round(simGross * simFeeRate);
+                    const simTaxVal = Math.round(simGross * simTaxRate);
+                    const simNet = simGross - simFeeVal - (simPassTax ? 0 : simTaxVal);
+
+                    // Cenário sem repasse (absorvido 100%)
+                    const badFeeVal = Math.round(simBaseAmount * simFeeRate);
+                    const badTaxVal = Math.round(simBaseAmount * simTaxRate);
+                    const badNet = simBaseAmount - badFeeVal - badTaxVal;
+                    const lossDiff = simBaseAmount - badNet;
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* Cenário Ativo */}
+                        <div className="waterfall-summary-box" style={{ background: simPassFee && simPassTax ? 'rgba(16, 185, 129, 0.04)' : 'var(--surface-2)', border: simPassFee && simPassTax ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid var(--line)' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>
+                              Cenário Configurado
+                            </span>
+                            {simPassFee && simPassTax ? (
+                              <span className="anti-loss-badge"><Svg k="shield" s={12} color="var(--ok)" /> Zero Prejuízo</span>
+                            ) : (
+                              <span className="loss-warning-badge"><Svg k="trash" s={12} color="#ef4444" /> Margem Reduzida</span>
+                            )}
+                          </div>
+
+                          <div className="waterfall-line">
+                            <span>Valor Base dos Serviços:</span>
+                            <b style={{ color: 'var(--text)' }}>{BRLc(simBaseAmount)}</b>
+                          </div>
+
+                          <div className="waterfall-line" style={{ color: simPassFee ? 'var(--ok)' : 'var(--muted)' }}>
+                            <span>(+) Repasse Taxa OFIR ({simFeePercent}%):</span>
+                            <b>{simPassFee ? `+ ${BRLc(simFeeVal)} (cliente paga)` : 'R$ 0,00 (você absorve)'}</b>
+                          </div>
+
+                          <div className="waterfall-line" style={{ color: simPassTax ? 'var(--ok)' : 'var(--muted)' }}>
+                            <span>(+) Repasse de Impostos ({simTaxPercent}%):</span>
+                            <b>{simPassTax ? `+ ${BRLc(simTaxVal)} (embutido na NF)` : 'R$ 0,00 (você absorve)'}</b>
+                          </div>
+
+                          <div className="waterfall-line total-client">
+                            <span>VALOR TOTAL DA PROPOSTA:</span>
+                            <b style={{ color: 'var(--accent)', fontSize: 17 }}>{BRLc(simGross)}</b>
+                          </div>
+
+                          <div className="waterfall-line" style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 4 }}>
+                            <span>(-) Intermediação OFIR (2%):</span>
+                            <span>- {BRLc(simFeeVal)}</span>
+                          </div>
+
+                          <div className="waterfall-line" style={{ fontSize: 11.5, color: 'var(--muted)' }}>
+                            <span>(-) Recolhimento de Impostos:</span>
+                            <span>- {BRLc(simTaxVal)}</span>
+                          </div>
+
+                          <div className="waterfall-line total-net">
+                            <span>LÍQUIDO FINAL NA SUA CONTA:</span>
+                            <b style={{ fontSize: 18 }}>{BRLc(simPassFee && simPassTax ? simBaseAmount : simNet)}</b>
+                          </div>
+                        </div>
+
+                        {/* Comparativo Didático: Se você não repassasse */}
+                        <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--line)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ef4444', fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>
+                            <Svg k="trash" s={14} color="#ef4444" />
+                            O que aconteceria se você NÃO repassasse:
+                          </div>
+                          <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
+                            Cobrando apenas o subtotal de {BRLc(simBaseAmount)}, após descontar a taxa de {BRLc(badFeeVal)} e impostos de {BRLc(badTaxVal)}, você ficaria com apenas <b style={{ color: 'var(--text)' }}>{BRLc(badNet)}</b> na conta.
+                          </p>
+                          <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, fontSize: 12, color: '#ef4444', fontWeight: 700 }}>
+                            Prejuízo evitado pelo Repasse Inteligente: {BRLc(lossDiff)}!
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-ABA 3: EXTRATO FINANCEIRO E LIQUIDAÇÃO */}
+            {escrowSubTab === 'extrato' && (
+              <div className="panel">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+                  <div>
+                    <span className="eyebrow">MOVIMENTAÇÕES EM CUSTÓDIA BANCÁRIA</span>
+                    <h3 style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700 }}>
+                      Extrato de Entradas, Liberações & Taxas
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {[
+                      { key: 'all', label: 'Todas' },
+                      { key: 'credit', label: 'Entradas' },
+                      { key: 'payout', label: 'Liberações' },
+                      { key: 'fee', label: 'Taxas' }
+                    ].map(f => (
+                      <button
+                        key={f.key}
+                        type="button"
+                        className={`notif-tab-pill ${ledgerFilter === f.key ? 'active' : ''}`}
+                        onClick={() => setLedgerFilter(f.key as any)}
+                        style={{ fontSize: 12 }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="escrow-table-wrap">
+                  <table className="escrow-table">
+                    <thead>
+                      <tr>
+                        <th>Data & Hora</th>
+                        <th>Tipo</th>
+                        <th>Descrição da Movimentação</th>
+                        <th>Contrato</th>
+                        <th style={{ textAlign: 'right' }}>Valor</th>
+                        <th style={{ textAlign: 'center' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ background: 'rgba(16, 185, 129, 0.03)' }}>
+                        <td style={{ color: 'var(--muted)', fontSize: 12 }}>23/10/2026 14:20</td>
+                        <td><span className="pill ok" style={{ fontSize: 10 }}>Liberação</span></td>
+                        <td>
+                          <b>Aprovação Marco 1 (Sondagem e Escavação)</b>
+                          <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Laudo técnico validado pelo cliente</small>
+                        </td>
+                        <td><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>#PROP-842</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ok)', fontFamily: 'ui-monospace, monospace' }}>
+                          + R$ 58.200,00
+                        </td>
+                        <td style={{ textAlign: 'center' }}><span className="pill ok" style={{ fontSize: 10 }}>Disponível D+0</span></td>
+                      </tr>
+
+                      <tr>
+                        <td style={{ color: 'var(--muted)', fontSize: 12 }}>23/10/2026 14:20</td>
+                        <td><span className="pill" style={{ fontSize: 10 }}>Taxa OFIR (2%)</span></td>
+                        <td>
+                          <b>Taxa de Intermediação OFIR 2% (Coberta pelo Cliente)</b>
+                          <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Taxa de intermediação retida na transação</small>
+                        </td>
+                        <td><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>#PROP-842</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--text-2)', fontFamily: 'ui-monospace, monospace' }}>
+                          R$ 1.164,00
+                        </td>
+                        <td style={{ textAlign: 'center' }}><span className="pill" style={{ fontSize: 10 }}>Liquidado</span></td>
+                      </tr>
+
+                      <tr>
+                        <td style={{ color: 'var(--muted)', fontSize: 12 }}>15/10/2026 09:15</td>
+                        <td><span className="pill" style={{ fontSize: 10 }}>Depósito Escrow</span></td>
+                        <td>
+                          <b>Depósito em Custódia Integral do Contrato</b>
+                          <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Eduardo Castro creditou valor total em conta garantia</small>
+                        </td>
+                        <td><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>#PROP-842</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}>
+                          + R$ 186.000,00
+                        </td>
+                        <td style={{ textAlign: 'center' }}><span className="pill ok" style={{ fontSize: 10 }}>Custodiado</span></td>
+                      </tr>
+
+                      <tr>
+                        <td style={{ color: 'var(--muted)', fontSize: 12 }}>02/10/2026 16:45</td>
+                        <td><span className="pill ok" style={{ fontSize: 10 }}>Transferência PIX</span></td>
+                        <td>
+                          <b>Transferência D+0 para Conta Itaú PJ</b>
+                          <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>Chave PIX CNPJ · Comprovante de liquidação enviado</small>
+                        </td>
+                        <td><span style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }}>#PROP-720</span></td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--ok)', fontFamily: 'ui-monospace, monospace' }}>
+                          R$ 94.000,00
+                        </td>
+                        <td style={{ textAlign: 'center' }}><span className="pill ok" style={{ fontSize: 10 }}>Efetivado</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-ABA 4: CONTA BANCÁRIA PJ E AUDITORIA */}
+            {escrowSubTab === 'conta_pj' && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+                <div className="panel" style={{ background: 'var(--surface-2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span className="eyebrow">CONTA PJ DE LIQUIDAÇÃO INSTANTÂNEA</span>
+                    <span className="pill ok" style={{ fontSize: 10 }}>Auditada & Verificada</span>
+                  </div>
+
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
+                    Banco Itaú Unibanco S.A. (341)
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
+                    <b>Agência:</b> 1240 · <b>Conta Corrente:</b> 48910-2
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>
+                    <b>Razão Social:</b> {currentSup.n} Ltda
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
+                    <b>CNPJ:</b> 24.891.302/0001-44
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 2 }}>
+                    <b>Chave PIX:</b> financeiro@{currentSup.n.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br
+                  </div>
+
+                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
+                    Liquidação automática em D+0 garantida pelo Sistema de Pagamentos Brasileiro (CIP / Banco Central).
+                  </div>
+                </div>
+
+                <div className="panel">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--portal-badge-bg)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
+                      <Svg k="shield" s={16} />
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>Segurança Jurídica da Conta Escrow OFIR</h4>
+                      <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Garantias contratuais de pagamento</span>
+                    </div>
+                  </div>
+
+                  <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.6 }}>
+                    <li><b>Garantia contra Inadimplência:</b> O contratante deposita 100% do valor antes do início dos serviços.</li>
+                    <li><b>Liberação por Marco Concluído:</b> Cada etapa realizada é vistoriada e tem os fundos transferidos diretamente à sua conta.</li>
+                    <li><b>Intermediação de Negociações (Taxa Fixa de 2%):</b> O modelo OFIR atua como intermediador das transações (similar à Uber). A taxa fixa de 2% remunera a segurança da intermediação e pode ser repassada com gross-up na proposta para preservar 100% da sua margem.</li>
+                    <li><b>Mediação Técnica Especializada:</b> Em caso de divergência de projeto, engenheiros da OFIR realizam perícia presencial no canteiro.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

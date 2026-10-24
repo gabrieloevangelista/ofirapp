@@ -709,7 +709,7 @@ function Home({
         {[
           ['Sondagem e terraplenagem', '02 set', '#1f7a55', 'terreno'],
           ['Fundação', 'em andamento', C.accent, 'fundacao'],
-          ['Vedação e estrutura (EPS)', 'out', C.s3, 'estrutura'],
+          ['Vedação e estrutura', 'out', C.s3, 'estrutura'],
           ['Cobertura e telhado', 'nov', C.s3, 'cobertura']
         ].map(([t, d, c, ic]) => (
           <View key={t} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}>

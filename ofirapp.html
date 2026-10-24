@@ -1061,7 +1061,7 @@ footer{margin-top:96px;border-top:1px solid var(--line);padding:48px var(--g) 12
     <form class="search" id="search">
       <div class="field"><label for="q-city">Onde</label><input id="q-city" placeholder="CEP ou cidade" autocomplete="postal-code"><small class="cep-info" id="cep-info" hidden aria-live="polite"></small></div>
       <div class="field"><label for="q-type">O que vai construir</label>
-        <select id="q-type"><option>Casa térrea</option><option>Sobrado</option><option>Kitnets para renda</option><option>Galpão</option><option>Ampliação ou reforma</option></select>
+        <select id="q-type"><option>Construção</option><option>Reforma</option><option>Ampliação</option></select>
       </div>
       <div class="field"><label for="q-area">Área</label><input id="q-area" inputmode="numeric" placeholder="420 m²"></div>
       <button class="btn" type="submit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Buscar fornecedores</button>
@@ -1355,7 +1355,7 @@ const svg=(k,s=17)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="n
 const MATS=[['madeira','Madeira'],['ferragem','Ferragem e aço'],['cimento','Cimento e agregados'],['eletrica','Material elétrico'],['hidraulica','Material hidráulico'],['revestimentos','Revestimentos'],['loucas','Louças e metais'],['tintas','Tintas'],['vidros','Vidros']];
 const STAGES=[
   ['projeto','Projeto e aprovação'],['terreno','Terreno e terraplenagem'],['fundacao','Fundação'],
-  ['estrutura','Estrutura e vedação'],['cobertura','Cobertura'],['instalacoes','Elétrica e hidráulica'],
+  ['estrutura','Vedação e estrutura'],['cobertura','Cobertura'],['instalacoes','Elétrica e hidráulica'],
   ['esquadrias','Portas e janelas'],['acabamento','Revestimento e acabamento'],['paisagismo','Paisagismo'],['posobra','Limpeza e pós-obra']
 ];
 // custo: multiplicador sobre o custo base por m². prazo: multiplicador sobre o prazo base. Valores de protótipo.
