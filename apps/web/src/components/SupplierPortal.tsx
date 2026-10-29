@@ -2981,8 +2981,8 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
                       <span style={{ color: 'var(--muted)' }}>Progresso da Obra e Liberações:</span>
                       <b style={{ color: 'var(--accent)' }}>Etapa 1 Aprovada (58% liberado ou em medição)</b>
                     </div>
-                    <div style={{ height: 6, background: 'var(--surface-3)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ width: '58%', height: '100%', background: 'var(--accent)', borderRadius: 3 }} />
+                    <div style={{ height: 4, background: 'var(--surface-3)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: '58%', height: '100%', background: 'var(--accent)', borderRadius: 2 }} />
                     </div>
                   </div>
 
@@ -3141,7 +3141,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
                 <div className="pricing-pass-grid">
                   {/* Inputs e Switches */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                    <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--line-2)' }}>
+                    <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 4, border: '1px solid var(--line)' }}>
                       <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', display: 'block', marginBottom: 6 }}>
                         Valor Base Orçado dos seus Serviços (Seu Custo + Lucro Desejado)
                       </label>
@@ -3152,7 +3152,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
                           step={5000}
                           value={simBaseAmount}
                           onChange={e => setSimBaseAmount(Math.max(1000, Number(e.target.value)))}
-                          style={{ flex: 1, height: 42, padding: '0 12px', fontSize: 16, fontWeight: 700, borderRadius: 8, border: '1px solid var(--line)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}
+                          style={{ flex: 1, height: 42, padding: '0 12px', fontSize: 16, fontWeight: 700, borderRadius: 4, border: '1px solid var(--line)', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'ui-monospace, monospace' }}
                         />
                         <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)', fontFamily: 'ui-monospace, monospace' }}>
                           {BRLc(simBaseAmount)}
@@ -3330,7 +3330,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
                         </div>
 
                         {/* Comparativo Didático: Se você não repassasse */}
-                        <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 10, border: '1px solid var(--line)' }}>
+                        <div style={{ background: 'var(--surface-2)', padding: '14px 16px', borderRadius: 4, border: '1px solid var(--line)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ef4444', fontWeight: 700, fontSize: 12.5, marginBottom: 6 }}>
                             <Svg k="trash" s={14} color="#ef4444" />
                             O que aconteceria se você NÃO repassasse:
@@ -3338,7 +3338,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
                           <p style={{ margin: 0, fontSize: 12, color: 'var(--muted)', lineHeight: 1.4 }}>
                             Cobrando apenas o subtotal de {BRLc(simBaseAmount)}, após descontar a taxa de {BRLc(badFeeVal)} e impostos de {BRLc(badTaxVal)}, você ficaria com apenas <b style={{ color: 'var(--text)' }}>{BRLc(badNet)}</b> na conta.
                           </p>
-                          <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 6, fontSize: 12, color: '#ef4444', fontWeight: 700 }}>
+                          <div style={{ marginTop: 8, padding: '6px 10px', background: 'rgba(239, 68, 68, 0.08)', borderRadius: 3, fontSize: 12, color: '#ef4444', fontWeight: 700 }}>
                             Prejuízo evitado pelo Repasse Inteligente: {BRLc(lossDiff)}!
                           </div>
                         </div>
@@ -3486,7 +3486,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
 
                 <div className="panel">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--portal-badge-bg)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 4, background: 'var(--portal-badge-bg)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
                       <Svg k="shield" s={16} />
                     </div>
                     <div>
@@ -3516,7 +3516,7 @@ export function SupplierPortal({ onSwitchToClient, onLogout }: SupplierPortalPro
           <div className="supplier-modal-card" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--portal-badge-bg)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 4, background: 'var(--portal-badge-bg)', color: 'var(--accent)', display: 'grid', placeItems: 'center' }}>
                   <Svg k="building" s={16} />
                 </div>
                 <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>
